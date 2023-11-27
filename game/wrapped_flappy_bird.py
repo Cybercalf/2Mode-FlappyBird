@@ -136,9 +136,6 @@ class GameState:
         # 调整帧速率
         GAMECLOCK.tick(FPS)
 
-        # debug
-        print("reward: {}, terminal: {}".format(reward, terminal))
-
         # 把这一帧的游戏画面、reward、terminal作为参数返回
         return image_data, reward, terminal
 
