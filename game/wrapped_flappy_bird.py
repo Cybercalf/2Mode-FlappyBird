@@ -17,7 +17,7 @@ IMAGES, SOUNDS = assets_process.load_assets()
 # 游戏屏幕的尺寸，对应素材中背景图片的宽与高
 SCREENWIDTH, SCREENHEIGHT = 288, 512
 # 游戏帧率
-FPS = 60
+FPS = 30
 
 
 '''
@@ -116,15 +116,15 @@ class GameState:
         SCREEN.blit(IMAGES['floor'], (self.floor.x, self.floor.y))
 
         # 在画布上绘制分数
-        score_str = str(self.game_score)
-        n = len(score_str)
-        w = IMAGES['LIST_SCORE']['number_score_00'].get_width() * 1.1
-        x = (SCREENWIDTH - n * w) / 2
-        y = SCREENHEIGHT * 0.1
-        for number in score_str:
-            SCREEN.blit(IMAGES['LIST_SCORE']
-                        ['number_score_0' + number], (x, y))
-            x += w
+        # score_str = str(self.game_score)
+        # n = len(score_str)
+        # w = IMAGES['LIST_SCORE']['number_score_00'].get_width() * 1.1
+        # x = (SCREENWIDTH - n * w) / 2
+        # y = SCREENHEIGHT * 0.1
+        # for number in score_str:
+        #     SCREEN.blit(IMAGES['LIST_SCORE']
+        #                 ['number_score_0' + number], (x, y))
+        #     x += w
 
         SCREEN.blit(self.bird.image, self.bird.rect)
 
@@ -158,11 +158,12 @@ class Bird(pygame.sprite.Sprite):
         self.rect.y = y
         # 小鸟在y轴上的速度，注意正方向为竖直向下
         # 注意速度时间单位为1帧的时间
-        self.y_vel = -5 * 60 / FPS
+        self.y_vel = -5.5 * 60 / FPS
         # 重力
         self.gravity = 0.4 * ((60 / FPS) ** 2)
         # 小鸟爬升时的各项初始参数
-        self.y_vel_after_flap = -6 * 60 / FPS
+        # self.y_vel_after_flap = -6 * 60 / FPS
+        self.y_vel_after_flap = -5.5 * 60 / FPS
 
     def update(self, flap=False):
         '''
@@ -224,9 +225,9 @@ class PipeManager(pygame.sprite.Group):
     # 水管个数（上下同时出现的一对水管算1个）
     pipe_quantity = 4
     # 水管之间的距离
-    pipe_distance = 250
+    pipe_distance = 220
     # 上下水管的间距
-    pipe_gap = 125
+    pipe_gap = 130
 
     def __init__(self, *sprites):
         super().__init__(*sprites)
@@ -290,7 +291,8 @@ class Floor(pygame.sprite.Sprite):
         self.y = SCREENHEIGHT - self.get_height()
         # 地板的水平速度，向右为正方向
         # 注意速度时间单位为1帧的时间
-        self.x_vel = -3 * 60 / FPS
+        # self.x_vel = -3 * 60 / FPS
+        self.x_vel = 0
 
     def update(self):
         '''
