@@ -24,8 +24,8 @@ def load_assets():
 
     IMAGES = {}
     # 为了提高卷积神经网络的精度，将背景图片变为纯黑色以减小干扰
-    # IMAGES['bgpic'] = pygame.image.load('assets/sprites/bg_day.png')
-    IMAGES['bgpic'] = pygame.image.load('assets/sprites/bg_black.png')
+    IMAGES['bgblack'] = pygame.image.load('assets/sprites/bg_black.png')
+    IMAGES['bgpic'] = pygame.image.load('assets/sprites/bg_day.png')
     IMAGES['floor'] = pygame.image.load('assets/sprites/land.png')
     IMAGES['LIST_BIRD'] = BIRD_IMAGES
     IMAGES['LIST_PIPE'] = PIPE_IMAGES

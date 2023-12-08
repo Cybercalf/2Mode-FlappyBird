@@ -7,7 +7,8 @@ import random
 import numpy as np
 import shutil
 from BrainDQN import *
-import game.dqn_mode_gamestate as game
+import game.dqn_training_gamestate as game_for_training
+import game.dqn_mode_gamestate as game_for_playing
 import sys
 sys.path.append("game/")
 
@@ -83,7 +84,7 @@ def train_dqn(model, options, resume):
         print('load previous model weight: {}'.format(options.weight))
         _, _, best_time_step = load_checkpoint(options.weight, model)
 
-    flappyBird = game.GameState()
+    flappyBird = game_for_training.GameState()
     optimizer = optim.RMSprop(model.parameters(), lr=options.lr)
     ceriterion = nn.MSELoss()
  
@@ -194,7 +195,7 @@ def test_dqn(model, episode):
     ave_time = 0.
     for test_case in range(5):
         model.time_step = 0
-        flappyBird = game.GameState()
+        flappyBird = game_for_training.GameState()
         o, r, terminal = flappyBird.frame_step([1, 0])
         o = preprocess(o)
         model.set_initial_state()
@@ -224,7 +225,7 @@ def play_game(model_file_name, cuda=False, best=True):
     load_checkpoint(model_file_name, model)
 
     model.set_eval()
-    bird_game = game.GameState()
+    bird_game = game_for_playing.GameState()
     model.set_initial_state()
     if cuda:
         model = model.cuda()

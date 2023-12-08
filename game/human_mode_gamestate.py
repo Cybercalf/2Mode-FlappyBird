@@ -254,6 +254,10 @@ class FlappyBirdGameManager:
         '''
         游戏结束界面，非人类游玩时不需要使用
         '''
+
+        # 在控制台打印分数
+        print("[Gamestate] Game over! Score: {}".format(self.game_score))
+
         gameover_x = (SCREENWIDTH - IMAGES['gameover'].get_width()) / 2
         gameover_y = (self.floor.y - IMAGES['gameover'].get_height()) / 2
 
@@ -426,8 +430,8 @@ class Floor(pygame.sprite.Sprite):
         self.y = SCREENHEIGHT - self.get_height()
         # 地板的水平速度，向右为正方向
         # 注意速度时间单位为1帧的时间
-        # self.x_vel = -3 * 60 / FPS
-        self.x_vel = 0
+        self.x_vel = -3 * 60 / FPS
+        # self.x_vel = 0
 
     def update(self):
         '''
