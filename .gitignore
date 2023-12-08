@@ -165,3 +165,4 @@ assets/raw/
 original/
 model/
 *.tar
+temp*

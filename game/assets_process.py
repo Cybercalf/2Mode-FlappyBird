@@ -30,6 +30,7 @@ def load_assets():
     IMAGES['LIST_BIRD'] = BIRD_IMAGES
     IMAGES['LIST_PIPE'] = PIPE_IMAGES
     IMAGES['LIST_SCORE'] = SCORE_IMAGES
+    IMAGES['gameover'] = pygame.image.load('assets/sprites/text_game_over.png')
 
     # 从磁盘中加载音效文件
     SOUNDS = {}

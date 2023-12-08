@@ -7,7 +7,7 @@ import random
 import numpy as np
 import shutil
 from BrainDQN import *
-import game.wrapped_flappy_bird as game
+import game.dqn_mode_gamestate as game
 import sys
 sys.path.append("game/")
 
