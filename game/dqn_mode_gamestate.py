@@ -1,6 +1,5 @@
 import pygame
 import random
-import numpy as np
 import sys
 import game.assets_process as assets_process
 
@@ -117,6 +116,8 @@ class GameState:
             # SOUNDS['hit'].play()
             terminal = True
             reward = -5
+            # 在控制台打印分数
+            print("[Gamestate] Game over! Score: {}".format(self.game_score))
             self.game_reset()
 
         '''

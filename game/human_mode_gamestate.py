@@ -1,6 +1,5 @@
 import pygame
 import random
-import numpy as np
 import game.assets_process as assets_process
 
 pygame.init()
@@ -324,7 +323,7 @@ class Bird(pygame.sprite.Sprite):
             self.y_vel = self.gravity
 
         # 约每1/6秒切换一次小鸟的图片
-        self.frame_idx = (self.frame_idx+1) % int(FPS / 6)
+        self.frame_idx = (self.frame_idx + 1) % int(FPS / 6)
         self.idx = (self.frame_idx % 4)
         self.image = IMAGES['LIST_BIRD']['bird0_' + self.img_frames[self.idx]]
 
