@@ -55,7 +55,7 @@ class BrainDQN(nn.Module):
         self.relu2 = nn.ReLU(inplace=True)
         self.map_size = (64, 16, 9)
         self.fc1 = nn.Linear(
-            self.map_size[0]*self.map_size[1]*self.map_size[2], 256)
+            self.map_size[0] * self.map_size[1] * self.map_size[2], 256)
         self.relu3 = nn.ReLU(inplace=True)
         self.fc2 = nn.Linear(256, self.actions)
 
@@ -65,14 +65,23 @@ class BrainDQN(nn.Module):
            o -- current observation
         """
         # get Q estimation
+        # print("before go into the net, size: {}".format(o.size()))
         out = self.conv1(o)
+        # print("after self.conv1, size: {}".format(out.size()))
         out = self.relu1(out)
+        # print("after self.relu1, size: {}".format(out.size()))
         out = self.conv2(out)
+        # print("after self.conv2, size: {}".format(out.size()))
         out = self.relu2(out)
+        # print("after self.relu2, size: {}".format(out.size()))
         out = out.view(out.size()[0], -1)
+        # print("after out.view(out.size()[0], -1), size: {}".format(out.size()))
         out = self.fc1(out)
+        # print("after self.fc1, size: {}".format(out.size()))
         out = self.relu3(out)
+        # print("after self.relu3, size: {}".format(out.size()))
         out = self.fc2(out)
+        # print("after self.fc2, size: {}".format(out.size()))
         return out
 
     def forward(self, o):
@@ -113,7 +122,7 @@ class BrainDQN(nn.Module):
            terminal: terminal(\fan_{t+1})
         """
         next_state = np.append(
-            self.current_state[1:, :, :], o_next.reshape((1,)+o_next.shape), axis=0)
+            self.current_state[1:, :, :], o_next.reshape((1,) + o_next.shape), axis=0)
         self.replay_memory.append(
             (self.current_state, action, reward, next_state, terminal))
         if len(self.replay_memory) > self.mem_size:
