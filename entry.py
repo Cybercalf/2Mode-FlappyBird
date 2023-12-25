@@ -79,6 +79,8 @@ if __name__ == '__main__':
             sys.exit(1)
         if args.cuda:
             print('[Entry] Train model with GPU support')
+        else:
+            print('[Entry] Train model with CPU')
         # 训练环境。如果给定了预训练模型，则在指定模型的基础上继续训练，否则从头开始训练一个模型
         model = BrainDQN.BrainDQN(epsilon=args.init_e,
                                   mem_size=args.memory_size, cuda=args.cuda)

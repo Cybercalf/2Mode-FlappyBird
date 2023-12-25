@@ -84,7 +84,8 @@ class GameState:
         # 检查这一帧小鸟是不是越过了一对水管。如果是，游戏分数+1，reward变成1
         # 判断小鸟前一帧的左侧、水管中心线与小鸟后一帧左侧的位置关系
         # 这里速度*1.01是为了修bug，不加的话分数无法增加，原因未知，可能和帧数有关
-        if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up().x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
+        if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up(
+        ).x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
             # SOUNDS['score'].play()
             self.game_score += 1
             reward = 1
@@ -99,7 +100,8 @@ class GameState:
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
         # 目前小鸟原则上不会飞出屏幕
-        if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(self.bird, self.pipe_manager.pipe_group):
+        if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
+                self.bird, self.pipe_manager.pipe_group):
             # SOUNDS['hit'].play()
             terminal = True
             reward = -5
