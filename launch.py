@@ -1,7 +1,7 @@
 import sys
 import argparse
-import misc
-import BrainDQN
+import main_processes
+import network
 import torch.cuda
 from game.human_mode_gamestate import FlappyBirdGameManager
 
@@ -12,6 +12,7 @@ parser.add_argument('--mode', type=str,
 
 parser.add_argument('--play_mode', type=str,
                     help='(Only useful when mode==play) The way you want to play the game', default='human')
+
 parser.add_argument('--model', type=str, default='',
                     help='(Only useful when mode==play) The name of model file you want to play the game with')
 
@@ -56,35 +57,35 @@ if __name__ == '__main__':
     if args.mode == 'play':
         # 人类游玩
         if args.play_mode == "human":
-            print('[Entry] Start game at human mode')
+            print('[launch.py] Start game at human mode')
             game = FlappyBirdGameManager()
             game.game_start(with_frame_step=True)
         # 让训练好的模型游玩
         elif args.play_mode == "dqn":
-            # 非训练环境。必须给定一个预训练模型。
+            # 非训练环境（必须给定一个预训练模型）
             if not args.model == '':
-                print('[Entry] Start game at dqn mode')
-                misc.play_game(args.model, args.cuda, True)
+                print('[launch.py] Start game at dqn mode')
+                main_processes.play_game_with_model(args.model, args.cuda, True)
             else:
                 print(
-                    '[Entry] Error: When test (simply play game with model), a pretrained weight model file should be given')
+                    '[launch.py] Error: When test (simply play game with model), a pretrained weight model file should be given')
                 sys.exit(1)
         # 无效的游戏模式
         else:
-            print('[Entry] Error: invalid game mode')
+            print('[launch.py] Error: invalid game mode')
             sys.exit(1)
     # 训练模式
     elif args.mode == 'train':
         if args.cuda and not torch.cuda.is_available():
             print(
-                '[Entry] Error: CUDA is not available, maybe you should not set --cuda')
+                '[launch.py] Error: CUDA is not available, maybe you should not set --cuda')
             sys.exit(1)
         if args.cuda:
-            print('[Entry] Train model with GPU support')
+            print('[launch.py] Train model with GPU support')
         else:
-            print('[Entry] Train model with CPU')
+            print('[launch.py] Train model with CPU')
         # 训练环境。如果给定了预训练模型，则在指定模型的基础上继续训练，否则从头开始训练一个模型
-        model = BrainDQN.BrainDQN(epsilon=args.init_e,
-                                  mem_size=args.memory_size, cuda=args.cuda)
+        model = network.FlappyBirdNetwork(epsilon=args.init_e,
+                                          mem_size=args.memory_size, cuda=args.cuda)
         resume = not args.weight == ''
-        misc.train_dqn(model, args, resume)
+        main_processes.train_model(model, args, resume)

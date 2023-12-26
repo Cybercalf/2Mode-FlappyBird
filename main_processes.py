@@ -1,4 +1,4 @@
-# TODO: 尝试把只在一个func内用到的软编码值独立出来，组一个setting类，也许能减少变量创建的开销
+# TODO: 尝试把只在一个func内用到的软编码值独立出来，组成一个或多个setting类，也许能减少变量创建的开销
 import PIL.Image
 from torch.autograd import Variable
 import torch.optim
@@ -7,7 +7,7 @@ import torch
 import random
 import numpy as np
 import shutil
-import BrainDQN
+import network
 import game.dqn_training_gamestate as gamestate_for_training
 import game.dqn_mode_gamestate as gamestate_for_playing
 import sys
@@ -94,9 +94,9 @@ def load_checkpoint(filename, model):
     return episode, epsilon, time_step
 
 
-def train_dqn(model, options, resume):
+def train_model(model, options, resume):
     '''
-    Train DQN
+    训练模型的核心过程
 
     :param model: DQN model
     :param options: 训练使用的各项参数
@@ -109,7 +109,7 @@ def train_dqn(model, options, resume):
     best_time_step = 0.
     if resume:
         if options.weight is None:
-            print('[Misc] Error: when resume, you should give weight file name.')
+            print('[main_processes.py] Error: when resume, you should give weight file name.')
             return
         print('load previous model weight: {}'.format(options.weight))
         _, _, best_time_step = load_checkpoint(options.weight, model)
@@ -223,15 +223,15 @@ def train_dqn(model, options, resume):
 
         """
         每经过一定次数的episode，测试训练后模型的效果(具体次数为options.test_model_freq，默认值见程序入口)
-        如果训练后的模型效果优于训练前的模型，将其保存起来
+        如果训练后的模型效果经过估计优于训练前的模型，将其保存起来
         否则，按照options.save_checkpoint_freq的值，每隔一定数量的episode保存一次模型，不管这个模型是否是当前最优的
         TODO: 使每个checkpoint文件的state都同时包含time_step和best_time_step
         """
         if episode % options.test_model_freq == 0:
-            ave_time = test_dqn(model, episode)
+            avg_time_step = evaluate_avg_time_step(model, episode)
 
-        if ave_time > best_time_step:
-            best_time_step = ave_time
+        if avg_time_step > best_time_step:
+            best_time_step = avg_time_step
             save_checkpoint({
                 'episode': episode,
                 'epsilon': model.epsilon,
@@ -243,17 +243,17 @@ def train_dqn(model, options, resume):
                 'episode:': episode,
                 'epsilon': model.epsilon,
                 'state_dict': model.state_dict(),
-                'time_step': ave_time,
+                'time_step': avg_time_step,
             }, False, 'checkpoint-episode-%d.pth.tar' % episode)
         else:
             continue
         print('save checkpoint, episode={}, ave time step={:.2f}'.format(
-            episode, ave_time))
+            episode, avg_time_step))
 
 
-def test_dqn(model, current_episode, test_episode_num=5):
+def evaluate_avg_time_step(model, current_episode, test_episode_num=5):
     '''
-    测试当前模型的游戏效果
+    评估当前模型在数次游戏中坚持的平均时间，用于测试当前模型的游戏效果
 
     具体步骤：
 
@@ -264,10 +264,10 @@ def test_dqn(model, current_episode, test_episode_num=5):
 
     :param model: dqn model
     :param episode: current training episode
-    :returns ave_time: 模型在n次游戏中坚持的平均时间
+    :returns avg_time_step: 模型在n次游戏中坚持的平均时间
     '''
     model.set_eval()
-    ave_time = 0.
+    avg_time_step = 0.
     for test_case in range(test_episode_num):
         model.time_step = 0
         flappyBird = gamestate_for_training.GameState()
@@ -283,16 +283,16 @@ def test_dqn(model, current_episode, test_episode_num=5):
             model.current_state = np.append(
                 model.current_state[1:, :, :], o.reshape((1,) + o.shape), axis=0)
             model.increase_time_step()
-        ave_time += model.time_step
-    ave_time /= test_episode_num
+        avg_time_step += model.time_step
+    avg_time_step /= test_episode_num
     print(
         'testing: episode: {}, average time: {}'.format(
             current_episode,
-            ave_time))
-    return ave_time
+            avg_time_step))
+    return avg_time_step
 
 
-def play_game(model_file_name, cuda=False, best=True):
+def play_game_with_model(model_file_name, cuda=False, best=True):
     '''
     使用一个训练过的模型玩flappybird游戏
 
@@ -302,7 +302,7 @@ def play_game(model_file_name, cuda=False, best=True):
 
     # 调试输出
     print('load pretrained model file: ' + model_file_name)
-    model = BrainDQN.BrainDQN(epsilon=0., mem_size=0, cuda=cuda)
+    model = network.FlappyBirdNetwork(epsilon=0., mem_size=0, cuda=cuda)
     load_checkpoint(model_file_name, model)
 
     model.set_eval()

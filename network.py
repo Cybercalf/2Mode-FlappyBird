@@ -6,7 +6,7 @@ import torch.nn
 from torch.autograd import Variable
 
 
-class BrainDQN(torch.nn.Module):
+class FlappyBirdNetwork(torch.nn.Module):
     '''
     依据xmfbit大神设计的DQN改造
     '''
@@ -34,7 +34,7 @@ class BrainDQN(torch.nn.Module):
         :param mem_size: 经验回放（experience replay）用到的内存大小
         :param cuda: 是否使用cuda
         '''
-        super(BrainDQN, self).__init__()
+        super(FlappyBirdNetwork, self).__init__()
 
         # 用于表示当前是否正在训练的标志变量
         self.train = None
@@ -43,7 +43,7 @@ class BrainDQN(torch.nn.Module):
         # 初始化其他参数
         self.time_step = 0
         self.epsilon = epsilon
-        self.actions = BrainDQN.ACTIONS
+        self.actions = FlappyBirdNetwork.ACTIONS
         self.mem_size = mem_size
         self.use_cuda = cuda
         # 创建神经网络
@@ -143,7 +143,7 @@ class BrainDQN(torch.nn.Module):
         设置原始状态
         如果不指定原始状态，就用默认的empty_state
         '''
-        self.current_state = state if state is not None else BrainDQN.empty_state
+        self.current_state = state if state is not None else FlappyBirdNetwork.empty_state
 
     def store_transition(self, o_next, action, reward, terminal):
         '''
