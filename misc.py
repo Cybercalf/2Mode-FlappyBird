@@ -1,3 +1,4 @@
+# TODO: 尝试把只在一个func内用到的软编码值独立出来，组一个setting类，也许能减少变量创建的开销
 import PIL.Image
 from torch.autograd import Variable
 import torch.optim
@@ -12,11 +13,8 @@ import game.dqn_mode_gamestate as gamestate_for_playing
 import sys
 sys.path.append("game/")
 
-# TODO: 将IMAGE_SIZE转移位置，使其不再是全局变量
-IMAGE_SIZE = (72, 128)
 
-
-def preprocess(frame):
+def preprocess(frame, image_size_after_resize=(72, 128)):
     '''
     对输入的帧图像做预处理
 
@@ -30,7 +28,9 @@ def preprocess(frame):
 
     3.将图像每个像素的灰度值映射为0或1
     '''
-    im = PIL.Image.fromarray(frame).resize(IMAGE_SIZE).convert(mode='L')
+    # TODO: 解释为什么这里的降采样尺寸是(72, 128)，而创建空Tensor时采用(128, 72)
+    im = PIL.Image.fromarray(frame).resize(
+        image_size_after_resize).convert(mode='L')
     out = np.asarray(im).astype(np.float32)
     out[out <= 1.] = 0.0
     out[out > 1.] = 1.0
@@ -260,6 +260,8 @@ def test_dqn(model, current_episode, test_episode_num=5):
     设n为测试游戏次数
     模型在与训练相同的gamestate下游玩n次，游玩过程采取的action全部为依据自身数据选择的，而非随机选取。n次游戏结束后，返回平均游戏时间。
 
+    原作者设定n=5
+
     :param model: dqn model
     :param episode: current training episode
     :returns ave_time: 模型在n次游戏中坚持的平均时间
@@ -283,7 +285,10 @@ def test_dqn(model, current_episode, test_episode_num=5):
             model.increase_time_step()
         ave_time += model.time_step
     ave_time /= test_episode_num
-    print('testing: episode: {}, average time: {}'.format(current_episode, ave_time))
+    print(
+        'testing: episode: {}, average time: {}'.format(
+            current_episode,
+            ave_time))
     return ave_time
 
 

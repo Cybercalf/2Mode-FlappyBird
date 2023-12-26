@@ -43,7 +43,7 @@ class BrainDQN(torch.nn.Module):
         # 初始化其他参数
         self.time_step = 0
         self.epsilon = epsilon
-        self.actions = self.ACTIONS
+        self.actions = BrainDQN.ACTIONS
         self.mem_size = mem_size
         self.use_cuda = cuda
         # 创建神经网络
@@ -71,7 +71,7 @@ class BrainDQN(torch.nn.Module):
         self.conv2 = torch.nn.Conv2d(
             32, 64, kernel_size=4, stride=2, padding=1)
         self.relu2 = torch.nn.ReLU(inplace=True)
-        # TODO: 搞懂map_size含义
+        # 经过第2个卷积层之后，tensor后3个维度的尺寸如map_size所示
         self.map_size = (64, 16, 9)
 
         """
@@ -153,6 +153,7 @@ class BrainDQN(torch.nn.Module):
         :param reward: agent在这一帧得到的奖励值
         :param terminal: 在这一帧游戏是否结束
         '''
+        # TODO: 解释下面一句代码的具体含义，该句代码在各处被大量使用
         next_state = np.append(
             self.current_state[1:, :, :], o_next.reshape((1,) + o_next.shape),
             axis=0
@@ -170,18 +171,18 @@ class BrainDQN(torch.nn.Module):
         else:
             self.set_initial_state()
 
-    def get_action_randomly(self):
+    def get_action_randomly(self, pr_of_flapping=0.2):
         '''
         随机选择一个动作（action）
         '''
         action = np.zeros(self.actions, dtype=np.float32)
         """
-        原作者把随机选择动作的概率写死在代码里
-        agent在随机选取动作时，有0.8的概率不拍翅膀，有0.2的概率拍翅膀
+        设agent随机选取action时，拍翅膀的概率为p
+        agent在随机选取动作时，有(1-p)的概率不拍翅膀，有p的概率拍翅膀
+        原作者设定p=0.2
         之所以选择这个概率，有可能是为了使参数更快收敛，或者说，更容易找到飞得更远的方式，提高前期学习效率
-        TODO: 让随机选取不同动作的概率不再硬编码
         """
-        action[0 if random.random() < 0.8 else 1] = 1
+        action[1 if random.random() < pr_of_flapping else 0] = 1
         return action
 
     def get_optim_action(self):
@@ -189,7 +190,19 @@ class BrainDQN(torch.nn.Module):
         根据当前的状态，选择最佳的动作（action）
         '''
 
-        # TODO: 看懂get_optim_action的具体逻辑
+        """
+        torch.autograd包是pytorch搭建神经网络的核心，它为张量上的所有操作提供了自动求导机制；torch.autograd.Variable类的作用是包装Tensor，将一个tensor其变成计算图中的一个节点(变量)
+        一个tensor转换为Variable后，将有以下三个重要的属性：
+        .data：访问这个Variable存储的张量数据，即原始的张量值
+        .grad：访问这个Variable的梯度信息
+        grad_fn：访问这个Variable的运算信息，表示该变量是用户创建的变量还是中间计算出的结果变量。当变量是计算图的leaf nodes（叶节点）时，.grad_fn为False，当变量是计算图中间的结果变量时，.grad_fn为True。
+
+        q_value: 选取不同action的q值
+        尺寸：torch.Size([1, 2])
+        q_value中的两个数值分别代表小鸟不拍翅膀和拍翅膀的预期收益
+        每次采取最优动作时，会选取数值较大（即预期收益更高）的一个动作
+        eg. q_value = tensor([[15.4445,  2.2350]], device='cuda:0', grad_fn=<AddmmBackward0>)，则这一帧小鸟不拍翅膀的预期收益更高，最优选择就是不拍翅膀
+        """
         state = self.current_state
         with torch.no_grad():
             state_var = Variable(torch.from_numpy(state)).unsqueeze(0)
