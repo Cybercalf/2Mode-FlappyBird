@@ -64,7 +64,7 @@ def load_checkpoint(filename, model):
 
     try:
         checkpoint = torch.load(filename)
-    # 如果磁盘文件已gpu的方式存储，直接加载到cpu上会出现异常，检测到异常时使用另一种方法加载
+    # 如果磁盘文件以gpu的方式存储，直接加载到cpu上会出现异常，检测到异常时使用另一种方法加载
     except BaseException:
         # load weight saved on gpy device to cpu device
         # see
