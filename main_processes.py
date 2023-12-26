@@ -47,6 +47,7 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
 
     :param is_best: if the checkpoint is the best. If it is, then save as a best model
     '''
+    # TODO: 使模型文件名不再硬编码
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
