@@ -222,13 +222,12 @@ def train_dqn(model, options, resume):
             model.epsilon -= delta
 
         """
-        每经过100次episode，测试训练后模型的效果
+        每经过一定次数的episode，测试训练后模型的效果(具体次数为options.test_model_freq，默认值见程序入口)
         如果训练后的模型效果优于训练前的模型，将其保存起来
         否则，按照options.save_checkpoint_freq的值，每隔一定数量的episode保存一次模型，不管这个模型是否是当前最优的
-        TODO: 使测试间隔的episode数量不再用硬编码表示
         TODO: 使每个checkpoint文件的state都同时包含time_step和best_time_step
         """
-        if episode % 100 == 0:
+        if episode % options.test_model_freq == 0:
             ave_time = test_dqn(model, episode)
 
         if ave_time > best_time_step:
@@ -252,22 +251,22 @@ def train_dqn(model, options, resume):
             episode, ave_time))
 
 
-def test_dqn(model, episode):
+def test_dqn(model, current_episode, test_episode_num=5):
     '''
     测试当前模型的游戏效果
 
     具体步骤：
 
-    模型在与训练相同的gamestate下游玩5次，游玩过程采取的action全部为依据自身数据选择的，而非随机选取。5次游戏结束后，返回平均游戏时间。
+    设n为测试游戏次数
+    模型在与训练相同的gamestate下游玩n次，游玩过程采取的action全部为依据自身数据选择的，而非随机选取。n次游戏结束后，返回平均游戏时间。
 
     :param model: dqn model
     :param episode: current training episode
-    :returns ave_time: 模型在5次游戏中坚持的平均时间
+    :returns ave_time: 模型在n次游戏中坚持的平均时间
     '''
-    # TODO: 使游戏次数不再用硬编码表示
     model.set_eval()
     ave_time = 0.
-    for test_case in range(5):
+    for test_case in range(test_episode_num):
         model.time_step = 0
         flappyBird = gamestate_for_training.GameState()
         o, r, terminal = flappyBird.frame_step([1, 0])
@@ -283,8 +282,8 @@ def test_dqn(model, episode):
                 model.current_state[1:, :, :], o.reshape((1,) + o.shape), axis=0)
             model.increase_time_step()
         ave_time += model.time_step
-    ave_time /= 5
-    print('testing: episode: {}, average time: {}'.format(episode, ave_time))
+    ave_time /= test_episode_num
+    print('testing: episode: {}, average time: {}'.format(current_episode, ave_time))
     return ave_time
 
 

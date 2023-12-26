@@ -42,6 +42,8 @@ parser.add_argument('--max_episode', type=int,
                     default=20000)
 parser.add_argument('--weight', type=str,
                     help='(Only useful when mode==train) weight file name for finetunig(Optional)', default='')
+parser.add_argument('--test_model_freq', type=int,
+                    help='(Only useful when mode==train) episode interval to test model during training phase', default=100)
 parser.add_argument('--save_checkpoint_freq', type=int,
                     help='(Only useful when mode==train) episode interval to save checkpoint', default=2000)
 
