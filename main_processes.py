@@ -45,7 +45,7 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
 
     :param state: checkpoint state: model weight and other info binding by user
 
-    :param is_best: if the checkpoint is the best. If it is, then save as a best model
+    :param is_best: if the checkpoint is the best currently. If it is, then save as a best model
     '''
     # TODO: 使模型文件名不再硬编码
     torch.save(state, filename)
@@ -87,9 +87,21 @@ def load_checkpoint(filename, model):
     调试输出(debug)
     输出加载的模型在训练过程中操纵小鸟飞行的最长时间
     """
+
+    # ------ begin of TODO ------
+    # best_time_step是过去checkpoint使用的参数。在重新训练模型之后，请将此部分语句改为：
+    # time_step = checkpoint.get('time_step', None)
+
     time_step = checkpoint.get('best_time_step', None)
     if time_step is None:
-        time_step = checkpoint('time_step')
+        time_step = checkpoint.get('time_step', None)
+
+    # ------ end of TODO ------
+
+    if time_step is None:
+        print(
+            '[main_processes.py] Error: the model to be loaded has no attribute named "time_step".')
+        sys.exit(1)
     print('pretrained time step = {}'.format(time_step))
 
     return episode, epsilon, time_step
@@ -110,7 +122,8 @@ def train_model(model, options, resume):
     best_time_step = 0.
     if resume:
         if options.weight is None:
-            print('[main_processes.py] Error: when resume, you should give weight file name.')
+            print(
+                '[main_processes.py] Error: when resume, you should give weight file name.')
             return
         print('load previous model weight: {}'.format(options.weight))
         _, _, best_time_step = load_checkpoint(options.weight, model)
@@ -224,28 +237,32 @@ def train_model(model, options, resume):
 
         """
         每经过一定次数的episode，测试训练后模型的效果(具体次数为options.test_model_freq，默认值见程序入口)
-        如果训练后的模型效果经过估计优于训练前的模型，将其保存起来
+        如果训练后的模型效果经过估计优于训练前的模型，将其保存起来，并且接下来的训练过程基于这个新的模型进行
         否则，按照options.save_checkpoint_freq的值，每隔一定数量的episode保存一次模型，不管这个模型是否是当前最优的
-        TODO: 使每个checkpoint文件的state都同时包含time_step和best_time_step
         """
+        # 用于查看当前episode是否保存了检查点的标志变量
+        checkpoint_saved = False
         if episode % options.test_model_freq == 0:
             avg_time_step = evaluate_avg_time_step(model, episode)
-
-        if avg_time_step > best_time_step:
-            best_time_step = avg_time_step
-            save_checkpoint({
-                'episode': episode,
-                'epsilon': model.epsilon,
-                'state_dict': model.state_dict(),
-                'best_time_step': best_time_step,
-            }, True, 'checkpoint-episode-%d.pth.tar' % episode)
-        elif episode % options.save_checkpoint_freq == 0:
+            if avg_time_step > best_time_step:
+                best_time_step = avg_time_step
+                save_checkpoint({
+                    'episode': episode,
+                    'epsilon': model.epsilon,
+                    'state_dict': model.state_dict(),
+                    'is_best_model_by_far': True,
+                    'time_step': best_time_step,
+                }, True, 'checkpoint-episode-%d.pth.tar' % episode)
+                checkpoint_saved = True
+        elif episode % options.save_checkpoint_freq == 0 and not checkpoint_saved:
             save_checkpoint({
                 'episode:': episode,
                 'epsilon': model.epsilon,
                 'state_dict': model.state_dict(),
+                'is_best_model_by_far': False,
                 'time_step': avg_time_step,
             }, False, 'checkpoint-episode-%d.pth.tar' % episode)
+            checkpoint_saved = True
         else:
             continue
         print('save checkpoint, episode={}, ave time step={:.2f}'.format(
