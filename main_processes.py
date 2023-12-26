@@ -78,8 +78,8 @@ def load_checkpoint(filename, model):
     """
     episode = checkpoint['episode']
     epsilon = checkpoint['epsilon']
-    print('pretrained episode = {}'.format(episode))
-    print('pretrained epsilon = {}'.format(epsilon))
+    print('[main_processes.py] pretrained episode = {}'.format(episode))
+    print('[main_processes.py] pretrained epsilon = {}'.format(epsilon))
 
     model.load_state_dict(checkpoint['state_dict'])
 
@@ -102,7 +102,7 @@ def load_checkpoint(filename, model):
         print(
             '[main_processes.py] Error: the model to be loaded has no attribute named "time_step".')
         sys.exit(1)
-    print('pretrained time step = {}'.format(time_step))
+    print('[main_processes.py] pretrained time step = {}'.format(time_step))
 
     return episode, epsilon, time_step
 
@@ -125,7 +125,9 @@ def train_model(model, options, resume):
             print(
                 '[main_processes.py] Error: when resume, you should give weight file name.')
             return
-        print('load previous model weight: {}'.format(options.weight))
+        print(
+            '[main_processes.py] load previous model weight: {}'.format(
+                options.weight))
         _, _, best_time_step = load_checkpoint(options.weight, model)
 
     """
@@ -160,7 +162,8 @@ def train_model(model, options, resume):
         model.store_transition(o, action, r, terminal)
 
     # start training
-    for episode in range(options.max_episode):
+    # 注意episode从0开始编号，所以训练次数可以在max_episode的基础上+1，否则最后的一部分训练结果没有机会保存下来
+    for episode in range(options.max_episode + 1):
         model.time_step = 0
         model.set_train()
         total_reward = 0.
@@ -227,7 +230,7 @@ def train_model(model, options, resume):
 
         # ------end of an episode------
 
-        print('episode: {}, epsilon: {:.4f}, max time step: {}, total reward: {:.6f}'.format(
+        print('[main_processes.py] episode: {}, epsilon: {:.4f}, max time step: {}, total reward: {:.6f}'.format(
             episode, model.epsilon, model.time_step, total_reward))
 
         # 经过一次episode后，降低epsilon的值
@@ -242,8 +245,12 @@ def train_model(model, options, resume):
         """
         # 用于查看当前episode是否保存了检查点的标志变量
         checkpoint_saved = False
+        # 用于检查当前episode的模型是否被评估的标志变量
+        model_evaluated = False
         if episode % options.test_model_freq == 0:
-            avg_time_step = evaluate_avg_time_step(model, episode)
+            if not model_evaluated:
+                avg_time_step = evaluate_avg_time_step(model, episode)
+                model_evaluated = True
             if avg_time_step > best_time_step:
                 best_time_step = avg_time_step
                 save_checkpoint({
@@ -254,19 +261,24 @@ def train_model(model, options, resume):
                     'time_step': best_time_step,
                 }, True, 'checkpoint-episode-%d.pth.tar' % episode)
                 checkpoint_saved = True
-        elif episode % options.save_checkpoint_freq == 0 and not checkpoint_saved:
+                print('[main_processes.py] save the best checkpoint by far, episode={}, average time step={:.2f}'.format(
+                    episode, avg_time_step))
+        if episode % options.save_checkpoint_freq == 0 and not checkpoint_saved:
+            if not model_evaluated:
+                avg_time_step = evaluate_avg_time_step(model, episode)
+                model_evaluated = True
             save_checkpoint({
-                'episode:': episode,
+                'episode': episode,
                 'epsilon': model.epsilon,
                 'state_dict': model.state_dict(),
                 'is_best_model_by_far': False,
                 'time_step': avg_time_step,
             }, False, 'checkpoint-episode-%d.pth.tar' % episode)
+            print('[main_processes.py] save a normal checkpoint, episode={}, average time step={:.2f}'.format(
+                episode, avg_time_step))
             checkpoint_saved = True
         else:
             continue
-        print('save checkpoint, episode={}, ave time step={:.2f}'.format(
-            episode, avg_time_step))
 
 
 def evaluate_avg_time_step(model, current_episode, test_episode_num=5):
@@ -304,7 +316,7 @@ def evaluate_avg_time_step(model, current_episode, test_episode_num=5):
         avg_time_step += model.time_step
     avg_time_step /= test_episode_num
     print(
-        'testing: episode: {}, average time: {}'.format(
+        '[main_processes.py] testing: episode: {}, average time step: {}'.format(
             current_episode,
             avg_time_step))
     return avg_time_step
@@ -319,7 +331,7 @@ def play_game_with_model(model_file_name, cuda=False, best=True):
     '''
 
     # 调试输出
-    print('load pretrained model file: ' + model_file_name)
+    print('[main_processes.py] load pretrained model file: ' + model_file_name)
     model = network.FlappyBirdNetwork(epsilon=0., mem_size=0, cuda=cuda)
     load_checkpoint(model_file_name, model)
 
@@ -339,4 +351,4 @@ def play_game_with_model(model_file_name, cuda=False, best=True):
             model.current_state[1:, :, :], o.reshape((1,) + o.shape), axis=0)
 
         model.increase_time_step()
-    print('total time step is {}'.format(model.time_step))
+    print('[main_processes.py] total time step is {}'.format(model.time_step))
