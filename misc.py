@@ -1,15 +1,14 @@
-# TODO: 优化import方式
-import PIL.Image as Image
+import PIL.Image
 from torch.autograd import Variable
-import torch.optim as optim
-import torch.nn as nn
+import torch.optim
+import torch.nn
 import torch
 import random
 import numpy as np
 import shutil
-from BrainDQN import *
-import game.dqn_training_gamestate as game_for_training
-import game.dqn_mode_gamestate as game_for_playing
+import BrainDQN
+import game.dqn_training_gamestate as gamestate_for_training
+import game.dqn_mode_gamestate as gamestate_for_playing
 import sys
 sys.path.append("game/")
 
@@ -31,7 +30,7 @@ def preprocess(frame):
 
     3.将图像每个像素的灰度值映射为0或1
     '''
-    im = Image.fromarray(frame).resize(IMAGE_SIZE).convert(mode='L')
+    im = PIL.Image.fromarray(frame).resize(IMAGE_SIZE).convert(mode='L')
     out = np.asarray(im).astype(np.float32)
     out[out <= 1.] = 0.0
     out[out > 1.] = 1.0
@@ -124,9 +123,9 @@ def train_dqn(model, options, resume):
     这一帧的奖励r
     游戏在这一帧是否结束terminal
     """
-    flappyBird = game_for_training.GameState()
-    optimizer = optim.RMSprop(model.parameters(), lr=options.lr)
-    ceriterion = nn.MSELoss()
+    flappyBird = gamestate_for_training.GameState()
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=options.lr)
+    ceriterion = torch.nn.MSELoss()
 
     action = [1, 0]
     o, r, terminal = flappyBird.frame_step(action)
@@ -270,7 +269,7 @@ def test_dqn(model, episode):
     ave_time = 0.
     for test_case in range(5):
         model.time_step = 0
-        flappyBird = game_for_training.GameState()
+        flappyBird = gamestate_for_training.GameState()
         o, r, terminal = flappyBird.frame_step([1, 0])
         o = preprocess(o)
         model.set_initial_state()
@@ -299,11 +298,11 @@ def play_game(model_file_name, cuda=False, best=True):
 
     # 调试输出
     print('load pretrained model file: ' + model_file_name)
-    model = BrainDQN(epsilon=0., mem_size=0, cuda=cuda)
+    model = BrainDQN.BrainDQN(epsilon=0., mem_size=0, cuda=cuda)
     load_checkpoint(model_file_name, model)
 
     model.set_eval()
-    bird_game = game_for_playing.GameState()
+    bird_game = gamestate_for_playing.GameState()
     model.set_initial_state()
     if cuda:
         model = model.cuda()
