@@ -10,6 +10,7 @@ import shutil
 import network
 import game.dqn_training_gamestate as gamestate_for_training
 import game.dqn_mode_gamestate as gamestate_for_playing
+import game.human_mode_gamestate as gamestate_for_human
 import sys
 import os
 import time
@@ -79,8 +80,11 @@ def load_checkpoint(filepath, model):
     """
     episode = checkpoint['episode']
     epsilon = checkpoint['epsilon']
+    # is_best = checkpoint['is_best_model_by_far']
+    # 调试输出
     print('[main_processes.py] pretrained episode = {}'.format(episode))
     print('[main_processes.py] pretrained epsilon = {}'.format(epsilon))
+    # print('[main_processes.py] model.is_best: {}'.format(is_best))
 
     model.load_state_dict(checkpoint['state_dict'])
 
@@ -108,7 +112,7 @@ def load_checkpoint(filepath, model):
     return episode, epsilon, time_step
 
 
-def train_model(model, options, resume):
+def train_model(options):
     '''
     训练模型的核心过程
 
@@ -124,19 +128,29 @@ def train_model(model, options, resume):
     """
     创建文件夹，用于存放训练过程中保存的模型
     """
-    checkpoint_folder_name = './model/checkpoint_' + time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + '/'
+    checkpoint_folder_name = './model/checkpoint_' + \
+        time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + '/'
     os.makedirs(checkpoint_folder_name, exist_ok=True)
 
+    # 记录模型的最好游玩效果，用time_step量化
     best_time_step = 0.
-    if resume:
-        if options.weight is None:
+
+    # 初始化模型（网络）
+    model = network.FlappyBirdNetwork(epsilon=options.init_e,
+                                      mem_size=options.memory_size, cuda=options.cuda)
+
+    """
+    检查训练过程是否基于一个给定的模型开始
+    """
+    if options.resume:
+        if options.model_path is None:
             print(
                 '[main_processes.py] Error: when resume, you should give weight file name.')
             return
         print(
             '[main_processes.py] load previous model weight: {}'.format(
-                options.weight))
-        _, _, best_time_step = load_checkpoint(options.weight, model)
+                options.model_path))
+        _, _, best_time_step = load_checkpoint(options.model_path, model)
 
     """
     初始化各参数
@@ -333,7 +347,27 @@ def evaluate_avg_time_step(model, current_episode, test_episode_num=5):
     return avg_time_step
 
 
-def play_game_with_model(model_file_path, cuda=False, best=True):
+def play_game(player, args=None):
+    '''
+    运行游戏，并根据传入参数确定游戏模式
+    '''
+    try:
+        if player == 'human':
+            game = gamestate_for_human.FlappyBirdGameManager()
+            game.game_start(with_frame_step=True)
+        elif player == 'computer':
+            play_game_with_model(
+                model_file_path=args.model_path,
+                cuda=args.cuda)
+    except AttributeError as e:
+        print(
+            '[main_processes.py] Error raised when game start. Type: {}, description: {}'.format(
+                type(e),
+                e))
+    pass
+
+
+def play_game_with_model(model_file_path, cuda=False):
     '''
     使用一个训练过的模型玩flappybird游戏
 
