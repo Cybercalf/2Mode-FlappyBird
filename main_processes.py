@@ -11,6 +11,8 @@ import network
 import game.dqn_training_gamestate as gamestate_for_training
 import game.dqn_mode_gamestate as gamestate_for_playing
 import sys
+import os
+import time
 sys.path.append("game/")
 
 
@@ -37,23 +39,22 @@ def preprocess(frame, image_size_after_resize=(72, 128)):
     return out
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, filepath='checkpoint.pth.tar'):
     '''
     经过一定训练次数后，保存当前模型，并检查其是否是目前最优的模型。
 
-    如果是，则正在训练的模型也会一并更改，接下来将会以它为基础继续训练。
+    如果是，系统会再拷贝一份模型出来，用一个醒目的命名告诉用户这是目前效果最好的模型
 
     :param state: checkpoint state: model weight and other info binding by user
 
     :param is_best: if the checkpoint is the best currently. If it is, then save as a best model
     '''
-    # TODO: 使模型文件名不再硬编码
-    torch.save(state, filename)
+    torch.save(state, filepath)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(filepath, 'model_best.pth.tar')
 
 
-def load_checkpoint(filename, model):
+def load_checkpoint(filepath, model):
     '''
     从磁盘中加载之前保存的检查点模型
 
@@ -63,14 +64,14 @@ def load_checkpoint(filename, model):
     '''
 
     try:
-        checkpoint = torch.load(filename)
+        checkpoint = torch.load(filepath)
     # 如果磁盘文件以gpu的方式存储，直接加载到cpu上会出现异常，检测到异常时使用另一种方法加载
     except BaseException:
         # load weight saved on gpy device to cpu device
         # see
         # https://discuss.pytorch.org/t/on-a-cpu-device-how-to-load-checkpoint-saved-on-gpu-device/349/3
         checkpoint = torch.load(
-            filename, map_location=lambda storage, loc: storage)
+            filepath, map_location=lambda storage, loc: storage)
 
     """
     调试输出(debug)
@@ -119,6 +120,13 @@ def train_model(model, options, resume):
     :param max_episode: maximum episode
     :param model_name: checkpoint file name
     '''
+
+    """
+    创建文件夹，用于存放训练过程中保存的模型
+    """
+    checkpoint_folder_name = './model/checkpoint_' + time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + '/'
+    os.makedirs(checkpoint_folder_name, exist_ok=True)
+
     best_time_step = 0.
     if resume:
         if options.weight is None:
@@ -247,6 +255,7 @@ def train_model(model, options, resume):
         checkpoint_saved = False
         # 用于检查当前episode的模型是否被评估的标志变量
         model_evaluated = False
+        # case1: 测试模型
         if episode % options.test_model_freq == 0:
             if not model_evaluated:
                 avg_time_step = evaluate_avg_time_step(model, episode)
@@ -259,10 +268,11 @@ def train_model(model, options, resume):
                     'state_dict': model.state_dict(),
                     'is_best_model_by_far': True,
                     'time_step': best_time_step,
-                }, True, 'checkpoint-episode-%d.pth.tar' % episode)
+                }, is_best=True, filepath=checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode)
                 checkpoint_saved = True
                 print('[main_processes.py] save the best checkpoint by far, episode={}, average time step={:.2f}'.format(
                     episode, avg_time_step))
+        # case2: 保存检查点
         if episode % options.save_checkpoint_freq == 0 and not checkpoint_saved:
             if not model_evaluated:
                 avg_time_step = evaluate_avg_time_step(model, episode)
@@ -273,10 +283,11 @@ def train_model(model, options, resume):
                 'state_dict': model.state_dict(),
                 'is_best_model_by_far': False,
                 'time_step': avg_time_step,
-            }, False, 'checkpoint-episode-%d.pth.tar' % episode)
+            }, is_best=False, filepath=checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode)
             print('[main_processes.py] save a normal checkpoint, episode={}, average time step={:.2f}'.format(
                 episode, avg_time_step))
             checkpoint_saved = True
+        # case3: 不评估，继续下一个episode
         else:
             continue
 
@@ -322,7 +333,7 @@ def evaluate_avg_time_step(model, current_episode, test_episode_num=5):
     return avg_time_step
 
 
-def play_game_with_model(model_file_name, cuda=False, best=True):
+def play_game_with_model(model_file_path, cuda=False, best=True):
     '''
     使用一个训练过的模型玩flappybird游戏
 
@@ -331,9 +342,9 @@ def play_game_with_model(model_file_name, cuda=False, best=True):
     '''
 
     # 调试输出
-    print('[main_processes.py] load pretrained model file: ' + model_file_name)
+    print('[main_processes.py] load pretrained model file: ' + model_file_path)
     model = network.FlappyBirdNetwork(epsilon=0., mem_size=0, cuda=cuda)
-    load_checkpoint(model_file_name, model)
+    load_checkpoint(model_file_path, model)
 
     model.set_eval()
     bird_game = gamestate_for_playing.GameState()
