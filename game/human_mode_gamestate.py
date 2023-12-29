@@ -2,7 +2,7 @@ import pygame
 import random
 import game.assets_process as assets_process
 
-pygame.init()
+# pygame.init()
 
 '''
 加载素材
