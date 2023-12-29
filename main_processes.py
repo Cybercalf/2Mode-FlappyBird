@@ -1,4 +1,3 @@
-# TODO: 尝试把只在一个func内用到的软编码值独立出来，组成一个或多个setting类，也许能减少变量创建的开销
 import PIL.Image
 from torch.autograd import Variable
 import torch.optim
@@ -8,8 +7,8 @@ import random
 import numpy as np
 import shutil
 import network
-import game.dqn_training_gamestate as gamestate_for_training
-import game.dqn_mode_gamestate as gamestate_for_playing
+import game.settings
+import game.dqn_mode_gamestate as gamestate_for_model
 import game.human_mode_gamestate as gamestate_for_human
 import sys
 import os
@@ -161,7 +160,9 @@ def train_model(options):
     这一帧的奖励r
     游戏在这一帧是否结束terminal
     """
-    flappyBird = gamestate_for_training.GameState()
+    gamestate_setting = game.settings.Setting()
+    gamestate_setting.set_preset_train()
+    flappyBird = gamestate_for_model.GameState(gamestate_setting)
     optimizer = torch.optim.RMSprop(model.parameters(), lr=options.lr)
     ceriterion = torch.nn.MSELoss()
 
@@ -325,7 +326,9 @@ def evaluate_avg_time_step(model, current_episode, test_episode_num=5):
     avg_time_step = 0.
     for test_case in range(test_episode_num):
         model.time_step = 0
-        flappyBird = gamestate_for_training.GameState()
+        gamestate_setting = game.settings.Setting()
+        gamestate_setting.set_preset_train()
+        flappyBird = gamestate_for_model.GameState(gamestate_setting)
         o, r, terminal = flappyBird.frame_step([1, 0])
         o = preprocess(o)
         model.set_initial_state()
@@ -381,13 +384,16 @@ def play_game_with_model(model_file_path, cuda=False):
     load_checkpoint(model_file_path, model)
 
     model.set_eval()
-    bird_game = gamestate_for_playing.GameState()
+    gamestate_setting = game.settings.Setting()
+    gamestate_setting.set_preset_play()
+    flappyBird = gamestate_for_model.GameState(gamestate_setting)
+    # flappyBird = gamestate_for_playing.GameState()
     model.set_initial_state()
     if cuda:
         model = model.cuda()
     while True:
         action = model.get_optim_action()
-        o, r, terminal = bird_game.frame_step(action)
+        o, r, terminal = flappyBird.frame_step(action)
         if terminal:
             break
         o = preprocess(o)
