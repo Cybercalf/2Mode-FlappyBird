@@ -1,91 +1,76 @@
 import sys
 import argparse
 import main_processes
-import network
 import torch.cuda
-from game.human_mode_gamestate import FlappyBirdGameManager
 
 parser = argparse.ArgumentParser(description='2Mode-FlappyBird')
 
-parser.add_argument('--mode', type=str,
-                    help='2 mode supported: train / play', default='play')
 
-parser.add_argument('--play_mode', type=str,
-                    help='(Only useful when mode==play) The way you want to play the game', default='human')
+parser.add_argument('-m', '--model', dest='model_path', type=str, default='',
+                    help='The name(path) of the model to train or play the game with')
 
-parser.add_argument('--model', type=str, default='',
-                    help='(Only useful when mode==play) The name of model file you want to play the game with')
+parser.add_argument('-t', '--train', action='store_true', default=False,
+                    help='train model instead of playing the game')
 
 parser.add_argument('--cuda', action='store_true', default=False,
-                    help='(Only useful when mode==train) If set true, with cuda enabled; otherwise, with CPU only')
-parser.add_argument('--lr', type=float,
-                    help='(Only useful when mode==train) learning rate', default=0.0001)
-parser.add_argument('--gamma', type=float,
-                    help='(Only useful when mode==train) discount rate', default=0.99)
-parser.add_argument('--batch_size', type=int,
-                    help='(Only useful when mode==train) batch size', default=32)
-parser.add_argument('--memory_size', type=int,
-                    help='(Only useful when mode==train) memory size for experience replay', default=5000)
-parser.add_argument('--init_e', type=float,
-                    help='(Only useful when mode==train) initial epsilon for epsilon-greedy exploration',
-                    default=1.0)
-parser.add_argument('--final_e', type=float,
-                    help='(Only useful when mode==train) final epsilon for epsilon-greedy exploration',
-                    default=0.1)
-parser.add_argument('--observation', type=int,
-                    help='(Only useful when mode==train) random observation number in the beginning before training',
-                    default=100)
-parser.add_argument('--exploration', type=int,
-                    help='(Only useful when mode==train) number of exploration using epsilon-greedy policy',
-                    default=10000)
-parser.add_argument('--max_episode', type=int,
-                    help='(Only useful when mode==train) maximum episode of training',
-                    default=20000)
-parser.add_argument('--weight', type=str,
-                    help='(Only useful when mode==train) weight file name for finetunig(Optional)', default='')
-parser.add_argument('--test_model_freq', type=int,
-                    help='(Only useful when mode==train) episode interval to test model during training phase', default=100)
-parser.add_argument('--save_checkpoint_freq', type=int,
-                    help='(Only useful when mode==train) episode interval to save checkpoint', default=2000)
+                    help='If set true, launch program with cuda enabled; otherwise, with CPU only')
+
+
+train_argument_group = parser.add_argument_group(
+    'Argument for training model (available when you set argument --train)')
+
+train_argument_group.add_argument('--lr', type=float,
+                                  help='learning rate', default=0.0001)
+train_argument_group.add_argument('--gamma', type=float,
+                                  help='discount rate', default=0.99)
+train_argument_group.add_argument('--batch_size', type=int,
+                                  help='batch size', default=32)
+train_argument_group.add_argument('--memory_size', type=int,
+                                  help='memory size for experience replay', default=5000)
+train_argument_group.add_argument('--init_e', type=float,
+                                  help='initial epsilon for epsilon-greedy exploration',
+                                  default=1.0)
+train_argument_group.add_argument('--final_e', type=float,
+                                  help='final epsilon for epsilon-greedy exploration',
+                                  default=0.1)
+train_argument_group.add_argument('--observation', type=int,
+                                  help='random observation number in the beginning before training',
+                                  default=100)
+train_argument_group.add_argument('--exploration', type=int,
+                                  help='number of exploration using epsilon-greedy policy',
+                                  default=10000)
+train_argument_group.add_argument('--max_episode', type=int,
+                                  help='maximum episode of training',
+                                  default=20000)
+train_argument_group.add_argument('--resume', action='store_true', default=False,
+                                  help='whether to start training based on model given (finetuning model)',)
+train_argument_group.add_argument('--test_model_freq', type=int,
+                                  help='episode interval to test model during training phase', default=100)
+train_argument_group.add_argument('--save_checkpoint_freq', type=int,
+                                  help='episode interval to save checkpoint', default=2000)
+
 
 if __name__ == '__main__':
     '''
     解析传入参数，针对部分情况给出错误信息
     '''
     args = parser.parse_args()
-    # 游玩模式
-    if args.mode == 'play':
-        # 人类游玩
-        if args.play_mode == "human":
-            print('[launch.py] Start game at human mode')
-            game = FlappyBirdGameManager()
-            game.game_start(with_frame_step=True)
-        # 让训练好的模型游玩
-        elif args.play_mode == "dqn":
-            # 非训练环境（必须给定一个预训练模型）
-            if not args.model == '':
-                print('[launch.py] Start game at dqn mode')
-                main_processes.play_game_with_model(args.model, args.cuda, True)
-            else:
-                print(
-                    '[launch.py] Error: When test (simply play game with model), a pretrained weight model file should be given')
-                sys.exit(1)
-        # 无效的游戏模式
-        else:
-            print('[launch.py] Error: invalid game mode')
-            sys.exit(1)
-    # 训练模式
-    elif args.mode == 'train':
-        if args.cuda and not torch.cuda.is_available():
-            print(
-                '[launch.py] Error: CUDA is not available, maybe you should not set --cuda')
-            sys.exit(1)
+
+    # 如果模型路径没有被传入程序，则开始真人游玩
+    if args.model_path == '' or args.model_path is None:
+        print('[launch.py] argument --model not received, launch game at human mode')
+        main_processes.play_game(player='human')
+    # 测试cuda是否可用
+    elif args.cuda and not torch.cuda.is_available():
+        print(
+            '[launch.py] Error: CUDA is not available, maybe you should not set --cuda')
+        sys.exit(1)
+    # 由模型在游戏环境中游玩或训练
+    else:
+        print('[launch.py] launch program with a model given')
         if args.cuda:
-            print('[launch.py] Train model with GPU support')
+            print('[launch.py] run program with GPU support')
+        if args.train:
+            main_processes.train_model(args)
         else:
-            print('[launch.py] Train model with CPU')
-        # 训练环境。如果给定了预训练模型，则在指定模型的基础上继续训练，否则从头开始训练一个模型
-        model = network.FlappyBirdNetwork(epsilon=args.init_e,
-                                          mem_size=args.memory_size, cuda=args.cuda)
-        resume = not args.weight == ''
-        main_processes.train_model(model, args, resume)
+            main_processes.play_game(player='computer', args=args)

@@ -1,9 +1,10 @@
+# TODO: 尝试把游戏的一些逻辑（如update各个sprite的部分）进一步封装，使其能够复用于其他游戏
 import pygame
 import random
 import sys
 import game.assets_process as assets_process
 
-pygame.init()
+# pygame.init()
 
 '''
 加载素材
@@ -36,10 +37,13 @@ class GameState:
     启动游戏也是从这里开始
     '''
 
-    def __init__(self):
+    def __init__(self, setting):
         '''
         定义游戏整体的各种状态与参数
         '''
+        # 加载设置
+        self.load_setting(setting)
+
         # 生成一个地板的实例
         self.floor = Floor()
         # 生成一个小鸟的实例
@@ -50,10 +54,16 @@ class GameState:
         # 游戏分数
         self.game_score = 0
 
-        SOUNDS['background'].set_volume(0.1)
-        SOUNDS['background'].play(-1)
+        if self.play_sound:
+            SOUNDS['background'].set_volume(0.1)
+            SOUNDS['background'].play(-1)
 
         pass
+
+    def load_setting(self, setting):
+        self.play_sound = setting.play_sound
+        self.show_log = setting.show_log
+        self.complete_render = setting.complete_render
 
     def game_reset(self):
         '''
@@ -82,7 +92,8 @@ class GameState:
         # 根据当前采取的行动(action)，确定小鸟是否拍打翅膀
         if action[1] == 1 and action[0] == 0:
             flap = True
-            SOUNDS['flap'].play()
+            if self.play_sound:
+                SOUNDS['flap'].play()
         elif action[0] == 1 and action[1] == 0:
             flap = False
         else:
@@ -97,8 +108,10 @@ class GameState:
         # 检查这一帧小鸟是不是越过了一对水管。如果是，游戏分数+1，reward变成1
         # 判断小鸟前一帧的左侧、水管中心线与小鸟后一帧左侧的位置关系
         # 这里速度*1.01是为了修bug，不加的话分数无法增加，原因未知，可能和帧数有关
-        if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up().x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
-            SOUNDS['score'].play()
+        if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up(
+        ).x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
+            if self.play_sound:
+                SOUNDS['score'].play()
             self.game_score += 1
             reward = 1
 
@@ -112,12 +125,13 @@ class GameState:
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
         # 目前小鸟原则上不会飞出屏幕
-        if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(self.bird, self.pipe_manager.pipe_group):
-            # SOUNDS['hit'].play()
+        if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
+                self.bird, self.pipe_manager.pipe_group):
             terminal = True
             reward = -5
             # 在控制台打印分数
-            print("[Gamestate] Game over! Score: {}".format(self.game_score))
+            if self.show_log:
+                print("[Gamestate] Game over! Score: {}".format(self.game_score))
             self.game_reset()
 
         '''
@@ -127,6 +141,7 @@ class GameState:
         SCREEN.blit(IMAGES['bgblack'], (0, 0))
 
         self.pipe_manager.pipe_group.draw(SCREEN)
+
         # 传给模型的图片中，地板是静止的
         SCREEN.blit(IMAGES['floor'], (0, self.floor.y))
 
@@ -135,28 +150,29 @@ class GameState:
         # 获取这一帧的游戏画面（游戏画面是卷积神经网络的输入成分）
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
 
-        '''
-        重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
-        绘制顺序：背景、所有水管、地板、分数（可以不绘制）、小鸟
-        '''
-        SCREEN.fill(0)
-        SCREEN.blit(IMAGES['bgpic'], (0, 0))
+        if self.complete_render:
+            """
+            重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
+            绘制顺序：背景、所有水管、地板、分数（可以不绘制）、小鸟
+            """
+            SCREEN.fill(0)
+            SCREEN.blit(IMAGES['bgpic'], (0, 0))
 
-        self.pipe_manager.pipe_group.draw(SCREEN)
-        SCREEN.blit(IMAGES['floor'], (self.floor.x, self.floor.y))
+            self.pipe_manager.pipe_group.draw(SCREEN)
+            SCREEN.blit(IMAGES['floor'], (self.floor.x, self.floor.y))
 
-        # 在画布上绘制分数
-        score_str = str(self.game_score)
-        n = len(score_str)
-        w = IMAGES['LIST_SCORE']['number_score_00'].get_width() * 1.1
-        x = (SCREENWIDTH - n * w) / 2
-        y = SCREENHEIGHT * 0.1
-        for number in score_str:
-            SCREEN.blit(IMAGES['LIST_SCORE']
-                        ['number_score_0' + number], (x, y))
-            x += w
+            # 在画布上绘制分数
+            score_str = str(self.game_score)
+            n = len(score_str)
+            w = IMAGES['LIST_SCORE']['number_score_00'].get_width() * 1.1
+            x = (SCREENWIDTH - n * w) / 2
+            y = SCREENHEIGHT * 0.1
+            for number in score_str:
+                SCREEN.blit(IMAGES['LIST_SCORE']
+                            ['number_score_0' + number], (x, y))
+                x += w
 
-        SCREEN.blit(self.bird.image, self.bird.rect)
+            SCREEN.blit(self.bird.image, self.bird.rect)
 
         pygame.display.update()
 
