@@ -26,26 +26,34 @@ class Bird(pygame.sprite.Sprite):
                 self.images[name] = pygame.image.load(path)
 
         self.image = self.images['bird0_' + self.img_frames[self.idx]]
+
         # 图像矩形
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        
         # 小鸟在y轴上的速度，注意正方向为竖直向下
         # 注意速度时间单位为1帧的时间
         self.y_vel = -5.5 * 60 / self.setting.FPS
+        
         # 重力
         self.gravity = 0.4 * ((60 / self.setting.FPS) ** 2)
+
+        # 判断小鸟此时是否爬升（拍翅膀）的标志
+        self.flap = False
+        
         # 小鸟爬升时的各项初始参数
         # self.y_vel_after_flap = -6 * 60 / FPS
         self.y_vel_after_flap = -5.5 * 60 / self.setting.FPS
 
-    def update(self, flap=False):
+    def update(self):
         '''
         定义小鸟更新自身状态的方法
         '''
-        # 如果小鸟爬升，将其在Y轴上的速度更改为初始值
-        if flap:
+        # 如果小鸟爬升，将其在Y轴上的速度更改为初始值，同时重置爬升的标志
+        if self.flap:
             self.y_vel = self.y_vel_after_flap
+            self.flap = False
 
         '''
         更新小鸟的速度和y轴坐标

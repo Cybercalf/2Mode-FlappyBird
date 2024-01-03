@@ -9,32 +9,33 @@ import game.assets_process as assets_process
 from game.gameobj.bird import Bird
 from game.gameobj.floor import Floor
 from game.gameobj.pipe import PipeManager
+import game.function
 
 # pygame.init()
 
-'''
-加载素材
-'''
-# 加载图片和音效文件
-IMAGES, SOUNDS = assets_process.load_assets()
+# '''
+# 加载素材
+# '''
+# # 加载图片和音效文件
+# IMAGES, SOUNDS = assets_process.load_assets()
 
-'''
-设置常量
-'''
-# 游戏屏幕的尺寸，对应素材中背景图片的宽与高
-SCREENWIDTH, SCREENHEIGHT = 288, 512
-# 游戏帧率
-FPS = 30
+# '''
+# 设置常量
+# '''
+# # 游戏屏幕的尺寸，对应素材中背景图片的宽与高
+# SCREENWIDTH, SCREENHEIGHT = 288, 512
+# # 游戏帧率
+# FPS = 30
 
 
-'''
-游戏设置
-'''
-# 定义屏幕大小
-SCREEN = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
-# 定义游戏窗口标题
-pygame.display.set_caption('Flappy Bird Demo')
-GAMECLOCK = pygame.time.Clock()
+# '''
+# 游戏设置
+# '''
+# # 定义屏幕大小
+# SCREEN = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
+# # 定义游戏窗口标题
+# pygame.display.set_caption('Flappy Bird Demo')
+# GAMECLOCK = pygame.time.Clock()
 
 
 class GameState:
@@ -47,15 +48,29 @@ class GameState:
         '''
         定义游戏整体的各种状态与参数
         '''
+
+        pygame.init()
+
         # 加载设置
         self.load_setting(setting)
+
+        # 定义游戏屏幕信息
+        self.screen = pygame.display.set_mode(
+            (self.setting.SCREENWIDTH, self.setting.SCREENHEIGHT))
+        pygame.display.set_caption('Flappy Bird Demo')
+
+        # 定义游戏时钟
+        self.gameclock = pygame.time.Clock()
+
+        # 加载图片和音效文件
+        self.images, self.sounds = assets_process.load_assets()
 
         # 生成一个地板的实例
         self.floor = Floor(setting=setting)
         # 生成一个小鸟的实例
         self.bird = Bird(
-            x=SCREENWIDTH * 0.2,
-            y=SCREENHEIGHT * 0.4,
+            x=self.setting.SCREENWIDTH * 0.2,
+            y=self.setting.SCREENHEIGHT * 0.4,
             setting=setting)
         # 生成水管列表（管理水管个数、更新的类）
         # 水管列表初始化时，第一批水管就已经被添加进去了，详见PipeManager的__init__方法
@@ -64,8 +79,8 @@ class GameState:
         self.game_score = 0
 
         if self.SOUND_PLAY:
-            SOUNDS['background'].set_volume(0.1)
-            SOUNDS['background'].play(-1)
+            self.sounds['background'].set_volume(0.1)
+            self.sounds['background'].play(-1)
 
         pass
 
@@ -81,8 +96,8 @@ class GameState:
         '''
         self.game_score = 0
         self.bird = Bird(
-            x=SCREENWIDTH * 0.2,
-            y=SCREENHEIGHT * 0.4,
+            x=self.setting.SCREENWIDTH * 0.2,
+            y=self.setting.SCREENHEIGHT * 0.4,
             setting=self.setting)
         self.pipe_manager = PipeManager(setting=self.setting)
         pass
@@ -98,25 +113,48 @@ class GameState:
         reward = 0.1
         terminal = False
 
-        # 更新地板状态（水平左移）
-        # 目前地板左移原则上只是提高人的视觉体验，对训练可能起到反效果
-        self.floor.update()
-
         # 根据当前采取的行动(action)，确定小鸟是否拍打翅膀
         if action[1] == 1 and action[0] == 0:
-            flap = True
+            self.bird.flap = True
             if self.SOUND_PLAY:
-                SOUNDS['flap'].play()
+                self.sounds['flap'].play()
         elif action[0] == 1 and action[1] == 0:
-            flap = False
+            self.bird.flap = False
         else:
             print(
                 '[dqn_mode_gamestate] Fatal error: gamestate received invalid action!')
             sys.exit(1)
 
-        # 更新小鸟的状态（切换图片，更改位置等）
-        # 根据小鸟在这一时刻是否拍动翅膀，小鸟的位置等信息会有不同的变化
-        self.bird.update(flap=flap)
+        # # ------
+            
+        # # 更新地板状态（水平左移）
+        # # 目前地板左移原则上只是提高人的视觉体验，对训练可能起到反效果
+        # self.floor.update()
+        
+        # # 更新小鸟的状态（切换图片，更改位置等）
+        # # 根据小鸟在这一时刻是否拍动翅膀，小鸟的位置等信息会有不同的变化
+        # self.bird.update()
+
+        # """
+        # 更新所有水管的状态（更改位置）
+        # 如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
+        # 具体实现过程写在PipeManager的update_pipe_group()方法中
+        # """
+        # self.pipe_manager.update_pipe_group()
+
+        # # ------
+
+        """
+        更新所有元素的位置
+        1.更新地板状态（水平左移）
+        目前地板左移原则上只是提高人的视觉体验，对训练可能起到反效果
+        2.更新小鸟的状态（切换图片，更改位置等）
+        根据小鸟在这一时刻是否拍动翅膀，小鸟的位置等信息会有不同的变化
+        3.更新所有水管的状态（更改位置）
+        如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
+        具体实现过程写在PipeManager的update_pipe_group()方法中
+        """
+        game.function.update(self.floor, self.bird, self.pipe_manager)
 
         # 检查这一帧小鸟是不是越过了一对水管。如果是，游戏分数+1，reward变成1
         # 判断小鸟前一帧的左侧、水管中心线与小鸟后一帧左侧的位置关系
@@ -124,17 +162,9 @@ class GameState:
         if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up(
         ).x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
             if self.SOUND_PLAY:
-                SOUNDS['score'].play()
+                self.sounds['score'].play()
             self.game_score += 1
             reward = 1
-
-        # 更新所有水管的状态（更改位置）
-        # 对整个Group使用update()方法，会触发Group内每一个Sprite（水管）的update()方法，水管更改位置的算法写在Pipe类的update()里面，很简单
-        self.pipe_manager.pipe_group.update()
-
-        # 如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
-        # 具体实现过程写在PipeManager的update_pipe_group()方法中
-        self.pipe_manager.update_pipe_group()
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
         # 目前小鸟原则上不会飞出屏幕
@@ -153,14 +183,14 @@ class GameState:
         在画布（屏幕）上绘制各个元素，供模型使用
         绘制顺序：背景、所有水管、地板、小鸟
         '''
-        SCREEN.blit(IMAGES['bgblack'], (0, 0))
+        self.screen.blit(self.images['bgblack'], (0, 0))
 
-        self.pipe_manager.pipe_group.draw(SCREEN)
+        self.pipe_manager.pipe_group.draw(self.screen)
 
         # 传给模型的图片中，地板是静止的
-        SCREEN.blit(IMAGES['floor'], (0, self.floor.y))
+        self.screen.blit(self.images['floor'], (0, self.floor.y))
 
-        SCREEN.blit(self.bird.image, self.bird.rect)
+        self.screen.blit(self.bird.image, self.bird.rect)
 
         # 获取这一帧的游戏画面（游戏画面是卷积神经网络的输入成分）
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
@@ -170,29 +200,30 @@ class GameState:
             重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
             绘制顺序：背景、所有水管、地板、分数（可以不绘制）、小鸟
             """
-            SCREEN.fill(0)
-            SCREEN.blit(IMAGES['bgpic'], (0, 0))
+            self.screen.fill(0)
+            self.screen.blit(self.images['bgpic'], (0, 0))
 
-            self.pipe_manager.pipe_group.draw(SCREEN)
-            SCREEN.blit(IMAGES['floor'], (self.floor.x, self.floor.y))
+            self.pipe_manager.pipe_group.draw(self.screen)
+            self.screen.blit(
+                self.images['floor'], (self.floor.x, self.floor.y))
 
             # 在画布上绘制分数
             score_str = str(self.game_score)
             n = len(score_str)
-            w = IMAGES['LIST_SCORE']['number_score_00'].get_width() * 1.1
-            x = (SCREENWIDTH - n * w) / 2
-            y = SCREENHEIGHT * 0.1
+            w = self.images['LIST_SCORE']['number_score_00'].get_width() * 1.1
+            x = (self.setting.SCREENWIDTH - n * w) / 2
+            y = self.setting.SCREENHEIGHT * 0.1
             for number in score_str:
-                SCREEN.blit(IMAGES['LIST_SCORE']
-                            ['number_score_0' + number], (x, y))
+                self.screen.blit(self.images['LIST_SCORE']
+                                 ['number_score_0' + number], (x, y))
                 x += w
 
-            SCREEN.blit(self.bird.image, self.bird.rect)
+            self.screen.blit(self.bird.image, self.bird.rect)
 
         pygame.display.update()
 
         # 调整帧速率
-        GAMECLOCK.tick(FPS)
+        self.gameclock.tick(self.setting.FPS)
 
         # 把这一帧的游戏画面、reward、terminal作为参数返回
         return image_data, reward, terminal

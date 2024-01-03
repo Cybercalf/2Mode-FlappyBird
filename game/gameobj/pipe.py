@@ -71,9 +71,13 @@ class PipeManager(pygame.sprite.Group):
 
     def update_pipe_group(self):
         '''
-        如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
+        1.移动每一根水管的位置（调用每一个Pipe的update()方法）
+        2.如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
         TODO: 更新水管的操作究竟是写在class内部还是外部更好？参考一下飞机大战
         '''
+        # 对整个Group使用update()方法，会触发Group内每一个Sprite（水管）的update()方法，水管更改位置的算法写在Pipe类的update()里面，很简单
+        self.pipe_group.update()
+        # 如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
         first_pipe_up = self.get_first_pipe_up()
         first_pipe_down = self.get_first_pipe_down()
         if first_pipe_up.rect.right < 0:

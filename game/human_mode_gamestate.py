@@ -1,6 +1,7 @@
 import pygame
 import random
 import game.assets_process as assets_process
+import game.function
 
 # pygame.init()
 
@@ -38,6 +39,9 @@ class FlappyBirdGameManager:
         '''
         定义游戏整体的各种状态与参数
         '''
+
+        pygame.init()
+
         # 生成一个地板的实例
         self.floor = Floor()
         # 生成一个小鸟的实例
