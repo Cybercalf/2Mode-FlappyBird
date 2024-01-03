@@ -1,7 +1,10 @@
+# TODO: 把各个类分开写在不同的文件内
+# TODO: 把代码各处经常用到的全局变量封装
 # TODO: 尝试把游戏的一些逻辑（如update各个sprite的部分）进一步封装，使其能够复用于其他游戏
 import pygame
 import random
 import sys
+from settings import Setting
 import game.assets_process as assets_process
 
 # pygame.init()
@@ -37,7 +40,7 @@ class GameState:
     启动游戏也是从这里开始
     '''
 
-    def __init__(self, setting):
+    def __init__(self, setting: Setting):
         '''
         定义游戏整体的各种状态与参数
         '''
@@ -60,7 +63,7 @@ class GameState:
 
         pass
 
-    def load_setting(self, setting):
+    def load_setting(self, setting: Setting):
         self.play_sound = setting.play_sound
         self.show_log = setting.show_log
         self.complete_render = setting.complete_render
@@ -131,7 +134,9 @@ class GameState:
             reward = -5
             # 在控制台打印分数
             if self.show_log:
-                print("[Gamestate] Game over! Score: {}".format(self.game_score))
+                print(
+                    "[Gamestate] Game over! Score: {}".format(
+                        self.game_score))
             self.game_reset()
 
         '''
