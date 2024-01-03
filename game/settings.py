@@ -7,17 +7,27 @@ class Setting:
     # 游戏帧率
     FPS = 30
 
+    # 是否播放音效
+    SOUND_PLAY = True
+    # 是否在控制台打印游戏日志
+    PRINT_CONSOLE_LOG = True
+    # 是否显示强化学习用到的游戏界面，而非正常游戏界面
+    SHOW_RL_OBSERVATION_SCREEN = False
+
     def __init__(self):
-        self.play_sound = False
-        self.show_log = False
-        self.complete_render = False
+        pass
 
-    def set_preset_train(self):
-        self.play_sound = False
-        self.show_log = False
-        self.complete_render = False
-
-    def set_preset_play(self):
-        self.play_sound = True
-        self.show_log = True
-        self.complete_render = True
+    def set_mode(self, mode='play'):
+        '''
+        切换演示环境与训练环境下不同的游戏设置
+        非法的模式会按照演示模式的设置处理
+        :param mode: 游戏模式，play（演示模式）/train（训练模式）
+        '''
+        if mode == 'train':
+            self.SOUND_PLAY = False
+            self.PRINT_CONSOLE_LOG = False
+            self.SHOW_RL_OBSERVATION_SCREEN = True
+        else:
+            self.SOUND_PLAY = True
+            self.PRINT_CONSOLE_LOG = True
+            self.SHOW_RL_OBSERVATION_SCREEN = False

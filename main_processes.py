@@ -161,7 +161,7 @@ def train_model(options):
     游戏在这一帧是否结束terminal
     """
     gamestate_setting = game.settings.Setting()
-    gamestate_setting.set_preset_train()
+    gamestate_setting.set_mode(mode='train')
     flappyBird = gamestate_for_model.GameState(gamestate_setting)
     optimizer = torch.optim.RMSprop(model.parameters(), lr=options.lr)
     ceriterion = torch.nn.MSELoss()
@@ -327,7 +327,7 @@ def evaluate_avg_time_step(model, current_episode, test_episode_num=5):
     for test_case in range(test_episode_num):
         model.time_step = 0
         gamestate_setting = game.settings.Setting()
-        gamestate_setting.set_preset_train()
+        gamestate_setting.set_mode(mode='train')
         flappyBird = gamestate_for_model.GameState(gamestate_setting)
         o, r, terminal = flappyBird.frame_step([1, 0])
         o = preprocess(o)
@@ -385,7 +385,7 @@ def play_game_with_model(model_file_path, cuda=False):
 
     model.set_eval()
     gamestate_setting = game.settings.Setting()
-    gamestate_setting.set_preset_play()
+    gamestate_setting.set_mode('play')
     flappyBird = gamestate_for_model.GameState(gamestate_setting)
     # flappyBird = gamestate_for_playing.GameState()
     model.set_initial_state()
