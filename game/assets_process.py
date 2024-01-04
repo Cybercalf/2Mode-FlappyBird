@@ -2,9 +2,9 @@ import pygame
 import os
 
 
-def load_assets():
+def load_images():
     '''
-    从磁盘中加载游戏所需的图片与音效文件
+    从磁盘中加载游戏所需的图片文件
     '''
     # 从磁盘中加载图片文件
     BIRD_IMAGES = {}
@@ -32,12 +32,17 @@ def load_assets():
     IMAGES['LIST_SCORE'] = SCORE_IMAGES
     IMAGES['gameover'] = pygame.image.load('assets/sprites/text_game_over.png')
 
-    # 从磁盘中加载音效文件
+    return IMAGES
+
+
+def load_sounds():
+    '''
+    从磁盘中加载游戏所需的音效文件
+    '''
     SOUNDS = {}
     SOUNDS['background'] = pygame.mixer.Sound('assets/audio/background.wav')
     SOUNDS['die'] = pygame.mixer.Sound('assets/audio/gameover.ogg')
     SOUNDS['hit'] = pygame.mixer.Sound('assets/audio/hit.ogg')
     SOUNDS['score'] = pygame.mixer.Sound('assets/audio/score.ogg')
     SOUNDS['flap'] = pygame.mixer.Sound('assets/audio/jump.ogg')
-
-    return IMAGES, SOUNDS
+    return SOUNDS
