@@ -1,3 +1,4 @@
+# TODO: 把人类游玩的gamestate合并到电脑游玩的gamestate中
 import pygame
 import random
 import flappybird.assets_process as assets_process

@@ -11,17 +11,17 @@ from flappybird.sprites.score import ScoreManager
 import flappybird.function
 
 
-class GameState:
+class GameState():
     '''
     管理FlappyBird游戏各窗口切换、图形渲染、判断游戏结束条件等功能的类，
     启动游戏也是从这里开始
     '''
 
     def __init__(self, setting: Setting):
-        '''
-        定义游戏整体的各种状态与参数
-        '''
 
+        # super().__init__()
+
+        # 初始化pygame
         pygame.init()
 
         # 加载设置
@@ -36,7 +36,7 @@ class GameState:
         self.gameclock = pygame.time.Clock()
 
         # 加载游戏音效文件
-        # TODO: 尝试用观察者模式等方法，封装有关游戏音效播放的代码
+        # TODO: 尝试封装有关游戏音效播放的代码
         self.sounds = load_sounds()
 
         """

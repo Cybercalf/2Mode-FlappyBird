@@ -1,3 +1,4 @@
+# TODO: 将训练和测试过程封装成类，方便添加日志模块调试
 import PIL.Image
 from torch.autograd import Variable
 import torch.optim
@@ -386,7 +387,6 @@ def play_game_with_model(model_file_path, cuda=False):
     gamestate_setting = flappybird.settings.Setting()
     gamestate_setting.set_mode('play')
     flappyBird = gamestate_for_model.GameState(gamestate_setting)
-    # flappyBird = gamestate_for_playing.GameState()
     model.set_initial_state()
     if cuda:
         model = model.cuda()
