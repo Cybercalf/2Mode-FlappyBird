@@ -31,17 +31,17 @@ class Bird(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
-        
+
         # 小鸟在y轴上的速度，注意正方向为竖直向下
         # 注意速度时间单位为1帧的时间
         self.y_vel = -5.5 * 60 / self.setting.FPS
-        
+
         # 重力
         self.gravity = 0.4 * ((60 / self.setting.FPS) ** 2)
 
         # 判断小鸟此时是否爬升（拍翅膀）的标志
         self.flap = False
-        
+
         # 小鸟爬升时的各项初始参数
         # self.y_vel_after_flap = -6 * 60 / FPS
         self.y_vel_after_flap = -5.5 * 60 / self.setting.FPS
@@ -71,3 +71,6 @@ class Bird(pygame.sprite.Sprite):
         self.frame_idx = (self.frame_idx + 1) % int(self.setting.FPS / 6)
         self.idx = (self.frame_idx % 4)
         self.image = self.images['bird0_' + self.img_frames[self.idx]]
+
+    def draw(self, surface: pygame.Surface):
+        surface.blit(self.image, self.rect)

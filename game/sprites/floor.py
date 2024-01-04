@@ -44,3 +44,12 @@ class Floor(pygame.sprite.Sprite):
         获取地板图片的高度
         '''
         return self.image.get_height()
+
+    def draw(self, surface):
+        surface.blit(self.image, (self.x, self.y))
+
+    def get_still_floor(self):
+        '''
+        获取一个x为0（没有移动过）的地板类
+        '''
+        return Floor(setting=self.setting)

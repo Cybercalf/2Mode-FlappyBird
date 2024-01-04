@@ -2,13 +2,14 @@
 # TODO: 把代码各处经常用到的全局变量封装
 # TODO: 尝试把游戏的一些逻辑（如update各个sprite的部分）进一步封装，使其能够复用于其他游戏
 import pygame
-import random
 import sys
 from game.settings import Setting
 import game.assets_process as assets_process
-from game.gameobj.bird import Bird
-from game.gameobj.floor import Floor
-from game.gameobj.pipe import PipeManager
+from game.sprites.bird import Bird
+from game.sprites.floor import Floor
+from game.sprites.pipe import PipeManager
+from game.sprites.background import NormalBG, BlackBG
+from game.sprites.score import ScoreManager
 import game.function
 
 # pygame.init()
@@ -65,6 +66,9 @@ class GameState:
         # 加载图片和音效文件
         self.images, self.sounds = assets_process.load_assets()
 
+        # 生成背景实例
+        self.normal_bg = NormalBG()
+        self.black_bg = BlackBG()
         # 生成一个地板的实例
         self.floor = Floor(setting=setting)
         # 生成一个小鸟的实例
@@ -75,8 +79,8 @@ class GameState:
         # 生成水管列表（管理水管个数、更新的类）
         # 水管列表初始化时，第一批水管就已经被添加进去了，详见PipeManager的__init__方法
         self.pipe_manager = PipeManager(setting=setting)
-        # 游戏分数
-        self.game_score = 0
+        # 生成游戏分数管理类
+        self.score_manager = ScoreManager(setting=setting)
 
         if self.SOUND_PLAY:
             self.sounds['background'].set_volume(0.1)
@@ -94,7 +98,8 @@ class GameState:
         '''
         重置游戏的各项参数
         '''
-        self.game_score = 0
+        # self.game_score = 0
+        self.score_manager.score = 0
         self.bird = Bird(
             x=self.setting.SCREENWIDTH * 0.2,
             y=self.setting.SCREENHEIGHT * 0.4,
@@ -126,11 +131,11 @@ class GameState:
             sys.exit(1)
 
         # # ------
-            
+
         # # 更新地板状态（水平左移）
         # # 目前地板左移原则上只是提高人的视觉体验，对训练可能起到反效果
         # self.floor.update()
-        
+
         # # 更新小鸟的状态（切换图片，更改位置等）
         # # 根据小鸟在这一时刻是否拍动翅膀，小鸟的位置等信息会有不同的变化
         # self.bird.update()
@@ -163,7 +168,8 @@ class GameState:
         ).x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
             if self.SOUND_PLAY:
                 self.sounds['score'].play()
-            self.game_score += 1
+            # self.game_score += 1
+            self.score_manager.score_increase_1()
             reward = 1
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
@@ -176,49 +182,58 @@ class GameState:
             if self.PRINT_CONSOLE_LOG:
                 print(
                     "[Gamestate] Game over! Score: {}".format(
-                        self.game_score))
+                        self.score_manager.score))
             self.game_reset()
 
-        '''
-        在画布（屏幕）上绘制各个元素，供模型使用
-        绘制顺序：背景、所有水管、地板、小鸟
-        '''
-        self.screen.blit(self.images['bgblack'], (0, 0))
+        """
+        在画布（屏幕）上绘制各个元素，供模型训练使用
+        绘制顺序：背景、所有水管、地板（静止）、小鸟
+        """
+        # self.screen.blit(self.images['bgblack'], (0, 0))
 
-        self.pipe_manager.pipe_group.draw(self.screen)
+        # self.pipe_manager.pipe_group.draw(self.screen)
 
-        # 传给模型的图片中，地板是静止的
-        self.screen.blit(self.images['floor'], (0, self.floor.y))
+        # # 传给模型的图片中，地板是静止的
+        # self.screen.blit(self.images['floor'], (0, self.floor.y))
 
-        self.screen.blit(self.bird.image, self.bird.rect)
+        # self.screen.blit(self.bird.image, self.bird.rect)
+
+        game.function.draw(self.black_bg, self.pipe_manager, self.floor.get_still_floor(), self.bird, surface=self.screen)
 
         # 获取这一帧的游戏画面（游戏画面是卷积神经网络的输入成分）
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
 
         if not self.SHOW_RL_OBSERVATION_SCREEN:
             """
-            重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
-            绘制顺序：背景、所有水管、地板、分数（可以不绘制）、小鸟
+            在演示模式下重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
+            绘制顺序：背景、所有水管、地板、分数、小鸟
             """
-            self.screen.fill(0)
-            self.screen.blit(self.images['bgpic'], (0, 0))
+            #     """
+            #     重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
+            #     绘制顺序：背景、所有水管、地板、分数（可以不绘制）、小鸟
+            #     """
+            #     self.screen.fill(0)
+            #     self.screen.blit(self.images['bgpic'], (0, 0))
 
-            self.pipe_manager.pipe_group.draw(self.screen)
-            self.screen.blit(
-                self.images['floor'], (self.floor.x, self.floor.y))
+            #     self.pipe_manager.pipe_group.draw(self.screen)
+            #     self.screen.blit(
+            #         self.images['floor'], (self.floor.x, self.floor.y))
 
-            # 在画布上绘制分数
-            score_str = str(self.game_score)
-            n = len(score_str)
-            w = self.images['LIST_SCORE']['number_score_00'].get_width() * 1.1
-            x = (self.setting.SCREENWIDTH - n * w) / 2
-            y = self.setting.SCREENHEIGHT * 0.1
-            for number in score_str:
-                self.screen.blit(self.images['LIST_SCORE']
-                                 ['number_score_0' + number], (x, y))
-                x += w
+            #     # 在画布上绘制分数
+            #     score_str = str(self.game_score)
+            #     n = len(score_str)
+            #     w = self.images['LIST_SCORE']['number_score_00'].get_width() * 1.1
+            #     x = (self.setting.SCREENWIDTH - n * w) / 2
+            #     y = self.setting.SCREENHEIGHT * 0.1
+            #     for number in score_str:
+            #         self.screen.blit(self.images['LIST_SCORE']
+            #                          ['number_score_0' + number], (x, y))
+            #         x += w
 
-            self.screen.blit(self.bird.image, self.bird.rect)
+            #     self.screen.blit(self.bird.image, self.bird.rect)
+            game.function.redraw(self.normal_bg, self.pipe_manager, self.floor, self.score_manager, self.bird, surface=self.screen)
+
+        # ------
 
         pygame.display.update()
 

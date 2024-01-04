@@ -367,7 +367,6 @@ def play_game(player, args=None):
             '[main_processes.py] Error raised when game start. Type: {}, description: {}'.format(
                 type(e),
                 e))
-    pass
 
 
 def play_game_with_model(model_file_path, cuda=False):

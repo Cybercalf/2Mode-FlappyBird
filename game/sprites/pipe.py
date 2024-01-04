@@ -98,3 +98,6 @@ class PipeManager(pygame.sprite.Group):
         给Group类添加一个类似于Sprite的update方法
         '''
         self.update_pipe_group()
+
+    def draw(self, canvas):
+        self.pipe_group.draw(canvas)
