@@ -7,9 +7,9 @@ import random
 import numpy as np
 import shutil
 import network
-import game.settings
-import game.dqn_mode_gamestate as gamestate_for_model
-import game.human_mode_gamestate as gamestate_for_human
+import flappybird.settings
+import flappybird.dqn_mode_gamestate as gamestate_for_model
+import flappybird.human_mode_gamestate as gamestate_for_human
 import sys
 import os
 import time
@@ -160,8 +160,8 @@ def train_model(options):
     这一帧的奖励r
     游戏在这一帧是否结束terminal
     """
-    gamestate_setting = game.settings.Setting()
-    gamestate_setting.set_preset_train()
+    gamestate_setting = flappybird.settings.Setting()
+    gamestate_setting.set_mode(mode='train')
     flappyBird = gamestate_for_model.GameState(gamestate_setting)
     optimizer = torch.optim.RMSprop(model.parameters(), lr=options.lr)
     ceriterion = torch.nn.MSELoss()
@@ -326,8 +326,8 @@ def evaluate_avg_time_step(model, current_episode, test_episode_num=5):
     avg_time_step = 0.
     for test_case in range(test_episode_num):
         model.time_step = 0
-        gamestate_setting = game.settings.Setting()
-        gamestate_setting.set_preset_train()
+        gamestate_setting = flappybird.settings.Setting()
+        gamestate_setting.set_mode(mode='train')
         flappyBird = gamestate_for_model.GameState(gamestate_setting)
         o, r, terminal = flappyBird.frame_step([1, 0])
         o = preprocess(o)
@@ -367,7 +367,6 @@ def play_game(player, args=None):
             '[main_processes.py] Error raised when game start. Type: {}, description: {}'.format(
                 type(e),
                 e))
-    pass
 
 
 def play_game_with_model(model_file_path, cuda=False):
@@ -384,8 +383,8 @@ def play_game_with_model(model_file_path, cuda=False):
     load_checkpoint(model_file_path, model)
 
     model.set_eval()
-    gamestate_setting = game.settings.Setting()
-    gamestate_setting.set_preset_play()
+    gamestate_setting = flappybird.settings.Setting()
+    gamestate_setting.set_mode('play')
     flappyBird = gamestate_for_model.GameState(gamestate_setting)
     # flappyBird = gamestate_for_playing.GameState()
     model.set_initial_state()

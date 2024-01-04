@@ -1,8 +1,6 @@
-# TODO: 尝试把游戏的一些逻辑（如update各个sprite的部分）进一步封装，使其能够复用于其他游戏
 import pygame
 import random
-import sys
-import game.assets_process as assets_process
+import flappybird.assets_process as assets_process
 
 # pygame.init()
 
@@ -20,7 +18,6 @@ SCREENWIDTH, SCREENHEIGHT = 288, 512
 # 游戏帧率
 FPS = 30
 
-
 '''
 游戏设置
 '''
@@ -31,18 +28,18 @@ pygame.display.set_caption('Flappy Bird Demo')
 GAMECLOCK = pygame.time.Clock()
 
 
-class GameState:
+class FlappyBirdGameManager:
     '''
     管理FlappyBird游戏各窗口切换、图形渲染、判断游戏结束条件等功能的类，
     启动游戏也是从这里开始
     '''
 
-    def __init__(self, setting):
+    def __init__(self):
         '''
         定义游戏整体的各种状态与参数
         '''
-        # 加载设置
-        self.load_setting(setting)
+
+        pygame.init()
 
         # 生成一个地板的实例
         self.floor = Floor()
@@ -53,17 +50,9 @@ class GameState:
         self.pipe_manager = PipeManager()
         # 游戏分数
         self.game_score = 0
-
-        if self.play_sound:
-            SOUNDS['background'].set_volume(0.1)
-            SOUNDS['background'].play(-1)
-
+        # 游戏在with_frame_step==True时，从游玩界面切换到结束界面的信号变量（game_over），训练DQN时不会用到，和训练DQN时终止游戏的信号变量（terminal）有差异
+        self.is_game_over = False
         pass
-
-    def load_setting(self, setting):
-        self.play_sound = setting.play_sound
-        self.show_log = setting.show_log
-        self.complete_render = setting.complete_render
 
     def game_reset(self):
         '''
@@ -72,90 +61,97 @@ class GameState:
         self.game_score = 0
         self.bird = Bird(x=SCREENWIDTH * 0.2, y=SCREENHEIGHT * 0.4)
         self.pipe_manager = PipeManager()
+        self.is_game_over = False
         pass
 
-    def frame_step(self, action):
+    def game_start(self, with_frame_step=False):
         '''
-        游戏窗口
+        启动游戏
         '''
+        # 循环播放BGM
+        SOUNDS['background'].set_volume(0.1)
+        SOUNDS['background'].play(-1)
+        '''
+        目前游戏主要逻辑有两种写法
+        1.(with_frame_step==True)每帧处理一次数据，把其单独封装成一个函数，每帧调用一次。此写法同样适用于DQN
+        2.(with_frame_step==False)游玩界面和其他界面一样，每帧处理数据的无限循环部分写在函数内
+        目前两种写法在实际游玩中体验一致
+        '''
+        if with_frame_step:
+            while True:
+                '''
+                重置游戏参数-进行游戏-结束游戏，不断循环
+                重置游戏参数在代码里的位置和训练DQN用的代码有差异
+                '''
+                while not self.is_game_over:
+                    self.game_window_frame_step()
+                self.end_window()
+                self.game_reset()
 
-        pygame.event.pump()
-
-        # 初始化这一帧的奖励（reward）和游戏中止的信号变量（terminal）
-        reward = 0.1
-        terminal = False
-
-        # 更新地板状态（水平左移）
-        # 目前地板左移原则上只是提高人的视觉体验，对训练可能起到反效果
-        self.floor.update()
-
-        # 根据当前采取的行动(action)，确定小鸟是否拍打翅膀
-        if action[1] == 1 and action[0] == 0:
-            flap = True
-            if self.play_sound:
-                SOUNDS['flap'].play()
-        elif action[0] == 1 and action[1] == 0:
-            flap = False
         else:
-            print(
-                '[dqn_mode_gamestate] Fatal error: gamestate received invalid action!')
-            sys.exit(1)
+            while True:
+                '''
+                重置游戏参数-进行游戏-结束游戏，不断循环
+                '''
+                self.game_reset()
+                # 显示窗口
+                # self.menu_window()
+                self.game_window()
+                self.end_window()
 
-        # 更新小鸟的状态（切换图片，更改位置等）
-        # 根据小鸟在这一时刻是否拍动翅膀，小鸟的位置等信息会有不同的变化
-        self.bird.update(flap=flap)
+    def game_window(self):
+        '''
+        游戏窗口，用于真人游玩
+        '''
 
-        # 检查这一帧小鸟是不是越过了一对水管。如果是，游戏分数+1，reward变成1
-        # 判断小鸟前一帧的左侧、水管中心线与小鸟后一帧左侧的位置关系
-        # 这里速度*1.01是为了修bug，不加的话分数无法增加，原因未知，可能和帧数有关
-        if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up(
-        ).x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
-            if self.play_sound:
+        while True:
+            # 监测小鸟是否拍动翅膀
+            flap = False
+
+            # 通过pygame.event模块，不断获取当前发生的事件
+            # pygame启动后输入法可能被偷偷调整为中文，导致字母按下没有反应。
+            # 启动游戏后若出现此问题，可以用快捷键切输入法中英文后重试
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    quit()
+                if event.type == pygame.KEYDOWN:
+                    # 按下空格使小鸟爬升
+                    if event.key == pygame.K_SPACE:
+                        flap = True
+                        SOUNDS['flap'].play()
+
+            # 更新地板状态（水平左移）
+            self.floor.update()
+
+            # 更新小鸟的状态（切换图片，更改位置等）
+            # 根据小鸟在这一时刻是否拍动翅膀，小鸟的位置等信息会有不同的变化
+            self.bird.update(flap=flap)
+
+            # 检查这一帧小鸟是不是越过了一对水管。如果是，游戏分数+1
+            # 判断小鸟前一帧的左侧、水管中心线与小鸟后一帧左侧的位置关系
+            # 这里速度*1.01是为了修bug，不加的话分数无法增加，原因未知，可能和帧数有关
+            if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up().x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
                 SOUNDS['score'].play()
-            self.game_score += 1
-            reward = 1
+                self.game_score += 1
 
-        # 更新所有水管的状态（更改位置）
-        # 对整个Group使用update()方法，会触发Group内每一个Sprite（水管）的update()方法，水管更改位置的算法写在Pipe类的update()里面，很简单
-        self.pipe_manager.pipe_group.update()
+            # 更新所有水管的状态（更改位置）
+            # 对整个Group使用update()方法，会触发Group内每一个Sprite（水管）的update()方法，水管更改位置的算法写在Pipe类的update()里面，很简单
+            self.pipe_manager.pipe_group.update()
 
-        # 如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
-        # 具体实现过程写在PipeManager的update_pipe_group()方法中
-        self.pipe_manager.update_pipe_group()
+            # 如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
+            # 具体实现过程写在PipeManager的update_pipe_group()方法中
+            self.pipe_manager.update_pipe_group()
 
-        # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
-        # 目前小鸟原则上不会飞出屏幕
-        if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
-                self.bird, self.pipe_manager.pipe_group):
-            terminal = True
-            reward = -5
-            # 在控制台打印分数
-            if self.show_log:
-                print("[Gamestate] Game over! Score: {}".format(self.game_score))
-            self.game_reset()
+            # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止
+            # 目前小鸟原则上不会飞出屏幕
+            if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(self.bird, self.pipe_manager.pipe_group):
+                SOUNDS['hit'].play()
+                return
 
-        '''
-        在画布（屏幕）上绘制各个元素，供模型使用
-        绘制顺序：背景、所有水管、地板、小鸟
-        '''
-        SCREEN.blit(IMAGES['bgblack'], (0, 0))
-
-        self.pipe_manager.pipe_group.draw(SCREEN)
-
-        # 传给模型的图片中，地板是静止的
-        SCREEN.blit(IMAGES['floor'], (0, self.floor.y))
-
-        SCREEN.blit(self.bird.image, self.bird.rect)
-
-        # 获取这一帧的游戏画面（游戏画面是卷积神经网络的输入成分）
-        image_data = pygame.surfarray.array3d(pygame.display.get_surface())
-
-        if self.complete_render:
-            """
-            重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
+            '''
+            在画布（屏幕）上绘制各个元素
             绘制顺序：背景、所有水管、地板、分数（可以不绘制）、小鸟
-            """
-            SCREEN.fill(0)
+            '''
             SCREEN.blit(IMAGES['bgpic'], (0, 0))
 
             self.pipe_manager.pipe_group.draw(SCREEN)
@@ -174,13 +170,113 @@ class GameState:
 
             SCREEN.blit(self.bird.image, self.bird.rect)
 
+            pygame.display.update()
+
+            # 调整帧速率
+            GAMECLOCK.tick(FPS)
+
+    def game_window_frame_step(self):
+        '''
+        游戏窗口，用于真人游玩
+        每一帧调用一次
+        '''
+        pygame.event.pump()
+
+        # 监测小鸟是否拍动翅膀
+        flap = False
+
+        # 通过pygame.event模块，不断获取当前发生的事件
+        # pygame启动后输入法可能被偷偷调整为中文，导致字母按下没有反应。
+        # 启动游戏后若出现此问题，可以用快捷键切输入法中英文后重试
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit()
+            if event.type == pygame.KEYDOWN:
+                # 按下空格使小鸟爬升
+                if event.key == pygame.K_SPACE:
+                    flap = True
+                    SOUNDS['flap'].play()
+
+        # 更新地板状态（水平左移）
+        self.floor.update()
+
+        # 更新小鸟的状态（切换图片，更改位置等）
+        # 根据小鸟在这一时刻是否拍动翅膀，小鸟的位置等信息会有不同的变化
+        self.bird.update(flap=flap)
+
+        # 检查这一帧小鸟是不是越过了一对水管。如果是，游戏分数+1
+        # 判断小鸟前一帧的左侧、水管中心线与小鸟后一帧左侧的位置关系
+        # 这里速度*1.01是为了修bug，不加的话分数无法增加，原因未知，可能和帧数有关
+        if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up().x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
+            SOUNDS['score'].play()
+            self.game_score += 1
+
+        # 更新所有水管的状态（更改位置）
+        # 对整个Group使用update()方法，会触发Group内每一个Sprite（水管）的update()方法，水管更改位置的算法写在Pipe类的update()里面，很简单
+        self.pipe_manager.pipe_group.update()
+
+        # 如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
+        # 具体实现过程写在PipeManager的update_pipe_group()方法中
+        self.pipe_manager.update_pipe_group()
+
+        # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止，重置游戏
+        # 目前小鸟原则上不会飞出屏幕
+        if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(self.bird, self.pipe_manager.pipe_group):
+            SOUNDS['hit'].play()
+            self.is_game_over = True
+
+        '''
+        在画布（屏幕）上绘制各个元素
+        绘制顺序：背景、所有水管、地板、分数（可以不绘制）、小鸟
+        '''
+        SCREEN.blit(IMAGES['bgpic'], (0, 0))
+
+        self.pipe_manager.pipe_group.draw(SCREEN)
+        SCREEN.blit(IMAGES['floor'], (self.floor.x, self.floor.y))
+
+        # 在画布上绘制分数
+        score_str = str(self.game_score)
+        n = len(score_str)
+        w = IMAGES['LIST_SCORE']['number_score_00'].get_width() * 1.1
+        x = (SCREENWIDTH - n * w) / 2
+        y = SCREENHEIGHT * 0.1
+        for number in score_str:
+            SCREEN.blit(IMAGES['LIST_SCORE']
+                        ['number_score_0' + number], (x, y))
+            x += w
+
+        SCREEN.blit(self.bird.image, self.bird.rect)
+
         pygame.display.update()
 
         # 调整帧速率
         GAMECLOCK.tick(FPS)
 
-        # 把这一帧的游戏画面、reward、terminal作为参数返回
-        return image_data, reward, terminal
+    def end_window(self):
+        '''
+        游戏结束界面，非人类游玩时不需要使用
+        '''
+
+        # 在控制台打印分数
+        print("[Gamestate] Game over! Score: {}".format(self.game_score))
+
+        gameover_x = (SCREENWIDTH - IMAGES['gameover'].get_width()) / 2
+        gameover_y = (self.floor.y - IMAGES['gameover'].get_height()) / 2
+
+        while True:
+            # 通过pygame.event模块，不断获取当前发生的事件
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    quit()
+                # 按下空格时，从结束界面返回，切换到下一界面
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    return
+            SCREEN.blit(IMAGES['bgpic'], (0, 0))
+            SCREEN.blit(self.floor.image, (0, self.floor.y))
+            SCREEN.blit(IMAGES['gameover'], (gameover_x, gameover_y))
+            pygame.display.update()
+            # 调整帧速率
+            GAMECLOCK.tick(FPS)
 
 
 class Bird(pygame.sprite.Sprite):
@@ -203,6 +299,7 @@ class Bird(pygame.sprite.Sprite):
         # 注意速度时间单位为1帧的时间
         self.y_vel = -5.5 * 60 / FPS
         # 重力
+        # self.gravity = 0.4 * ((60 / FPS) ** 2)
         self.gravity = 0.4 * ((60 / FPS) ** 2)
         # 小鸟爬升时的各项初始参数
         # self.y_vel_after_flap = -6 * 60 / FPS
@@ -268,6 +365,7 @@ class PipeManager(pygame.sprite.Group):
     # 水管个数（上下同时出现的一对水管算1个）
     pipe_quantity = 4
     # 水管之间的距离
+    # pipe_distance = 250
     pipe_distance = 220
     # 上下水管的间距
     pipe_gap = 130
@@ -362,4 +460,5 @@ class Floor(pygame.sprite.Sprite):
 
 
 if __name__ == '__main__':
-    pass
+    new_game = FlappyBirdGameManager()
+    new_game.game_start(with_frame_step=True)
