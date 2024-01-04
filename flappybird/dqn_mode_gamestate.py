@@ -93,8 +93,10 @@ class GameState(LoggerSubject):
         elif action[0] == 1 and action[1] == 0:
             self.bird.flap = False
         else:
-            print(
-                '[dqn_mode_gamestate] Fatal error: gamestate received invalid action!')
+            # 如果检测到非法的action传入，生成错误日志并退出程序
+            # 目前该错误理论上不会被触发
+            self.generate_log(message='Fatal error: gamestate received invalid action!',
+                              level='error', location=os.path.split(__file__)[1])
             sys.exit(1)
 
         """
@@ -128,9 +130,6 @@ class GameState(LoggerSubject):
             reward = -5
             # 在控制台打印分数
             if self.setting.PRINT_CONSOLE_LOG:
-                # print(
-                #     "[Gamestate] Game over! Score: {}".format(
-                #         self.score_manager.score))
                 self.generate_log(message="Game over! Score: {}".format(self.score_manager.score),
                                   level='info', location=os.path.split(__file__)[1])
             self.game_reset()

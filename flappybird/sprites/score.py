@@ -10,11 +10,8 @@ class Digit(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.x = x
         self.y = y
-        try:
-            self.image = pygame.image.load(
-                'assets/sprites/number_score_0{}.png'.format(digit))
-        except Exception as e:
-            print(e.with_traceback())
+        self.image = pygame.image.load(
+            'assets/sprites/number_score_0{}.png'.format(digit))
 
 
 class ScoreManager(pygame.sprite.Group):

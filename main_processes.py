@@ -80,9 +80,17 @@ class ProgramManager(LoggerSubject):
 
         try:
             checkpoint = torch.load(filepath)
-        # 如果磁盘文件以gpu的方式存储，直接加载到cpu上会出现异常，检测到异常时使用另一种方法加载
-        except BaseException:
-            # load weight saved on gpy device to cpu device
+        except FileNotFoundError as file_not_found_error:
+            # 若从磁盘中找不到要加载的文件，生成错误日志并退出
+            self.generate_log(message='Error raised when loading model. Type: {}, Description: {}'.format(
+                type(file_not_found_error), file_not_found_error),
+                level='error', location=os.path.split(__file__)[1])
+            sys.exit(1)
+        # 如果磁盘文件以gpu的方式存储，直接加载到cpu上可能会出现异常，检测到异常时尝试使用另一种方法加载
+        except BaseException as e:
+            self.generate_log(
+                message='Exception raised when loading model. Type: {}, Description: {}. Trying another way to load model.'.format(type(e), e), level='info', location=os.path.split(__file__)[1])
+            # load weight saved on gpu device to cpu device
             # see
             # https://discuss.pytorch.org/t/on-a-cpu-device-how-to-load-checkpoint-saved-on-gpu-device/349/3
             checkpoint = torch.load(
