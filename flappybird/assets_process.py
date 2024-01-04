@@ -2,6 +2,13 @@ import pygame
 import os
 
 
+def load_assets():
+    '''
+    从磁盘中加载游戏所需的图片、音效文件
+    '''
+    return load_images(), load_sounds()
+
+
 def load_images():
     '''
     从磁盘中加载游戏所需的图片文件

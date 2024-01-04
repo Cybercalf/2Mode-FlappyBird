@@ -56,10 +56,12 @@ if __name__ == '__main__':
     '''
     args = parser.parse_args()
 
+    program_manager = main_processes.ProgramManager()
+
     # 如果模型路径没有被传入程序，则开始真人游玩
     if args.model_path == '' or args.model_path is None:
         print('[launch.py] argument --model not received, launch game at human mode')
-        main_processes.play_game(player='human')
+        program_manager.play_game(player='human')
     # 测试cuda是否可用
     elif args.cuda and not torch.cuda.is_available():
         print(
@@ -71,6 +73,6 @@ if __name__ == '__main__':
         if args.cuda:
             print('[launch.py] run program with GPU support')
         if args.train:
-            main_processes.train_model(args)
+            program_manager.train_model(args)
         else:
-            main_processes.play_game(player='computer', args=args)
+            program_manager.play_game(player='computer', args=args)
