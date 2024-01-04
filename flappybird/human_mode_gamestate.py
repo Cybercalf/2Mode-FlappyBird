@@ -1,7 +1,6 @@
 import pygame
 import random
-import game.assets_process as assets_process
-import game.function
+import flappybird.assets_process as assets_process
 
 # pygame.init()
 
