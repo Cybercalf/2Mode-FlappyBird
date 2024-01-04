@@ -1,3 +1,6 @@
+import time
+
+
 class LoggerObserver():
     '''
     日志观察者
@@ -19,13 +22,14 @@ class FileLoggerObserver(LoggerObserver):
         super().__init__()
         self.output_file_path = output_file_path
 
-    def update(self, message, location):
+    def update(self, message, level, location):
         '''
         更新自身（即输出日志）
         '''
         super().update()
         with open(self.output_file_path, "a") as f:
-            f.write("[{}] {}".format(location, message))
+            f.write("[{}][{}][{}] {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                                             level, location, message))
 
 
 class ConsoleLoggerOberver(LoggerObserver):
@@ -36,9 +40,10 @@ class ConsoleLoggerOberver(LoggerObserver):
     def __init__(self):
         super().__init__()
 
-    def update(self, message, location):
+    def update(self, message, level, location):
         '''
         更新自身（即输出日志）
         '''
         super().update()
-        print("[{}] {}".format(location, message))
+        print("[{}][{}][{}] {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                                       level, location, message))

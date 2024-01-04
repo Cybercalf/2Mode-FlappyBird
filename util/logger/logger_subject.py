@@ -31,6 +31,7 @@ class LoggerSubject():
         '''
         if level in self.observers:
             for observer in self.observers[level]:
-                observer.update(message, location)
+                observer.update(message, level, location)
 
-    # generate_log = notify_observers
+    # 为notify_observers()方法起别名
+    generate_log = notify_observers

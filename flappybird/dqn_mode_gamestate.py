@@ -1,5 +1,6 @@
 # TODO: 尝试把游戏的一些逻辑（如update各个sprite的部分）进一步封装，使其能够复用于其他游戏
 import pygame
+import os
 import sys
 from flappybird.settings import Setting
 from flappybird.assets_process import load_sounds
@@ -9,9 +10,11 @@ from flappybird.sprites.pipe import PipeManager
 from flappybird.sprites.background import NormalBG, BlackBG
 from flappybird.sprites.score import ScoreManager
 import flappybird.function
+from util.logger.logger_subject import LoggerSubject
+from util.logger.logger_observer import ConsoleLoggerOberver
 
 
-class GameState():
+class GameState(LoggerSubject):
     '''
     管理FlappyBird游戏各窗口切换、图形渲染、判断游戏结束条件等功能的类，
     启动游戏也是从这里开始
@@ -19,7 +22,7 @@ class GameState():
 
     def __init__(self, setting: Setting):
 
-        # super().__init__()
+        super().__init__()
 
         # 初始化pygame
         pygame.init()
@@ -125,9 +128,11 @@ class GameState():
             reward = -5
             # 在控制台打印分数
             if self.setting.PRINT_CONSOLE_LOG:
-                print(
-                    "[Gamestate] Game over! Score: {}".format(
-                        self.score_manager.score))
+                # print(
+                #     "[Gamestate] Game over! Score: {}".format(
+                #         self.score_manager.score))
+                self.generate_log(message="Game over! Score: {}".format(self.score_manager.score),
+                                  level='info', location=os.path.split(__file__)[1])
             self.game_reset()
 
         """

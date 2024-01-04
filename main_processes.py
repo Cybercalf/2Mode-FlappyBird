@@ -1,4 +1,3 @@
-# TODO: 将训练和测试过程封装成类，方便添加日志模块调试
 import PIL.Image
 from torch.autograd import Variable
 import torch.optim
@@ -14,16 +13,25 @@ import flappybird.human_mode_gamestate as gamestate_for_human
 import sys
 import os
 import time
+from util.logger.logger_subject import LoggerSubject
+from util.logger.logger_observer import ConsoleLoggerOberver
 sys.path.append("game/")
 
 
-class ProgramManager:
+class ProgramManager(LoggerSubject):
     '''
     程序管理器，负责运行游戏、训练模型等一系列任务
     '''
 
     def __init__(self):
-        pass
+        super().__init__()
+        """
+        在初始化时，自动注册日志打印器，之后输出日志时，直接调用父类的打印方法即可
+        """
+        self.console_info_logger = ConsoleLoggerOberver()
+        self.console_error_logger = ConsoleLoggerOberver()
+        self.register_observer(self.console_info_logger, 'info')
+        self.register_observer(self.console_error_logger, 'error')
 
     def preprocess(self, frame, image_size_after_resize=(72, 128)):
         '''
@@ -88,9 +96,12 @@ class ProgramManager:
         epsilon = checkpoint['epsilon']
         # is_best = checkpoint['is_best_model_by_far']
         # 调试输出
-        print('[main_processes.py] pretrained episode = {}'.format(episode))
-        print('[main_processes.py] pretrained epsilon = {}'.format(epsilon))
-        # print('[main_processes.py] model.is_best: {}'.format(is_best))
+        self.generate_log(message='pretrained episode = {}'.format(episode),
+                          level='info', location=os.path.split(__file__)[1])
+        self.generate_log(message='pretrained epsilon = {}'.format(epsilon),
+                          level='info', location=os.path.split(__file__)[1])
+        # self.generate_log(message='model.is_best: {}'.format(is_best),
+        #                   level='info', location=os.path.split(__file__)[1])
 
         model.load_state_dict(checkpoint['state_dict'])
 
@@ -110,10 +121,11 @@ class ProgramManager:
         # ------ end of TODO ------
 
         if time_step is None:
-            print(
-                '[main_processes.py] Error: the model to be loaded has no attribute named "time_step".')
+            self.generate_log(message='Error: the model to be loaded has no attribute named "time_step".',
+                              level='error', location=os.path.split(__file__)[1])
             sys.exit(1)
-        print('[main_processes.py] pretrained time step = {}'.format(time_step))
+        self.generate_log(message='pretrained time step = {}'.format(time_step),
+                          level='info', location=os.path.split(__file__)[1])
 
         return episode, epsilon, time_step
 
@@ -148,14 +160,16 @@ class ProgramManager:
         检查训练过程是否基于一个给定的模型开始
         """
         if options.resume:
+            # 2024.01.04
+            # 目前程序未传入--model参数时，当做人类游玩游戏处理，所以下面这个异常理论上不会被触发
             if options.model_path is None:
-                print(
-                    '[main_processes.py] Error: when resume, you should give weight file name.')
+                self.generate_log(message='Error: when resume, you should give weight file name.',
+                                  level='error', location=os.path.split(__file__)[1])
                 return
-            print(
-                '[main_processes.py] load previous model weight: {}'.format(
-                    options.model_path))
-            _, _, best_time_step = self.load_checkpoint(options.model_path, model)
+            self.generate_log(message='load previous model weight: {}'.format(options.model_path),
+                              level='info', location=os.path.split(__file__)[1])
+            _, _, best_time_step = self.load_checkpoint(
+                options.model_path, model)
 
         """
         初始化各参数
@@ -264,8 +278,9 @@ class ProgramManager:
 
             # ------end of an episode------
 
-            print('[main_processes.py] episode: {}, epsilon: {:.4f}, max time step: {}, total reward: {:.6f}'.format(
-                episode, model.epsilon, model.time_step, total_reward))
+            self.generate_log(message='episode: {}, epsilon: {:.4f}, max time step: {}, total reward: {:.6f}'.format(
+                episode, model.epsilon, model.time_step, total_reward),
+                level='info', location=os.path.split(__file__)[1])
 
             # 经过一次episode后，降低epsilon的值
             if model.epsilon > options.final_e:
@@ -297,8 +312,10 @@ class ProgramManager:
                         'time_step': best_time_step,
                     }, is_best=True, filepath=checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode)
                     checkpoint_saved = True
-                    print('[main_processes.py] save the best checkpoint by far, episode={}, average time step={:.2f}'.format(
-                        episode, avg_time_step))
+                    self.generate_log(message='save the best checkpoint by far, episode={}, average time step={:.2f}'.format(
+                        episode, avg_time_step),
+                        level='info', location=os.path.split(__file__)[1])
+
             # case2: 保存检查点
             if episode % options.save_checkpoint_freq == 0 and not checkpoint_saved:
                 if not model_evaluated:
@@ -311,9 +328,11 @@ class ProgramManager:
                     'is_best_model_by_far': False,
                     'time_step': avg_time_step,
                 }, is_best=False, filepath=checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode)
-                print('[main_processes.py] save a normal checkpoint, episode={}, average time step={:.2f}'.format(
-                    episode, avg_time_step))
+                self.generate_log(message='save a normal checkpoint, episode={}, average time step={:.2f}'.format(
+                    episode, avg_time_step),
+                    level='info', location=os.path.split(__file__)[1])
                 checkpoint_saved = True
+
             # case3: 不评估，继续下一个episode
             else:
                 continue
@@ -355,10 +374,11 @@ class ProgramManager:
                 model.increase_time_step()
             avg_time_step += model.time_step
         avg_time_step /= test_episode_num
-        print(
-            '[main_processes.py] testing: episode: {}, average time step: {}'.format(
-                current_episode,
-                avg_time_step))
+
+        self.generate_log(message='testing: episode: {}, average time step: {}'.format(
+            current_episode, avg_time_step),
+            level='info', location=os.path.split(__file__)[1])
+
         return avg_time_step
 
     def play_game(self, player, args=None):
@@ -374,10 +394,9 @@ class ProgramManager:
                     model_file_path=args.model_path,
                     cuda=args.cuda)
         except AttributeError as e:
-            print(
-                '[main_processes.py] Error raised when game start. Type: {}, description: {}'.format(
-                    type(e),
-                    e))
+            self.generate_log(message='Error raised when game start. Type: {}, description: {}'.format(
+                type(e), e),
+                level='error', location=os.path.split(__file__)[1])
 
     def play_game_with_model(self, model_file_path, cuda=False):
         '''
@@ -388,16 +407,17 @@ class ProgramManager:
         '''
 
         # 调试输出
-        print(
-            '[main_processes.py] load pretrained model file: ' +
-            model_file_path)
+        self.generate_log(
+            message='load pretrained model file: ' + model_file_path,
+            level='info', location=os.path.split(__file__)[1])
         model = network.FlappyBirdNetwork(epsilon=0., mem_size=0, cuda=cuda)
         self.load_checkpoint(model_file_path, model)
-
         model.set_eval()
         gamestate_setting = flappybird.settings.Setting()
         gamestate_setting.set_mode('play')
         flappyBird = gamestate_for_model.GameState(gamestate_setting)
+        flappyBird.register_observer(self.console_info_logger, 'info')
+        flappyBird.register_observer(self.console_error_logger, 'error')
         model.set_initial_state()
         if cuda:
             model = model.cuda()
@@ -412,6 +432,7 @@ class ProgramManager:
                 model.current_state[1:, :, :], o.reshape((1,) + o.shape), axis=0)
 
             model.increase_time_step()
-        print(
-            '[main_processes.py] total time step is {}'.format(
-                model.time_step))
+
+        self.generate_log(
+            message='total time step is {}'.format(model.time_step),
+            level='info', location=os.path.split(__file__)[1])
