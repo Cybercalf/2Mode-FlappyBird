@@ -3,7 +3,7 @@ import pygame
 import os
 import sys
 from flappybird.settings import Setting
-from flappybird.assets_process import load_sounds
+from flappybird.assets_process import load_sounds, load_images
 from flappybird.sprites.bird import Bird
 from flappybird.sprites.floor import Floor
 from flappybird.sprites.pipe import PipeManager
@@ -11,10 +11,9 @@ from flappybird.sprites.background import NormalBG, BlackBG
 from flappybird.sprites.score import ScoreManager
 import flappybird.function
 from util.logger.logger_subject import LoggerSubject
-from util.logger.logger_observer import ConsoleLoggerOberver
 
 
-class GameState(LoggerSubject):
+class GameManager(LoggerSubject):
     '''
     管理FlappyBird游戏各窗口切换、图形渲染、判断游戏结束条件等功能的类，
     启动游戏也是从这里开始
@@ -26,6 +25,9 @@ class GameState(LoggerSubject):
 
         # 初始化pygame
         pygame.init()
+
+        # 指定游戏玩家
+        self.player = 'human'
 
         # 加载设置
         self.setting = setting
@@ -41,6 +43,9 @@ class GameState(LoggerSubject):
         # 加载游戏音效文件
         # TODO: 尝试封装有关游戏音效播放的代码
         self.sounds = load_sounds()
+
+        # 加载游戏图片文件
+        self.images = load_images()
 
         """
         生成实例：游戏背景、地板、小鸟
@@ -73,7 +78,67 @@ class GameState(LoggerSubject):
         self.pipe_manager = PipeManager(setting=self.setting)
         pass
 
-    def frame_step(self, action):
+    def set_player_human(self):
+        '''
+        指定游戏玩家为人类
+        '''
+        self.player = 'human'
+
+    def set_player_computer(self):
+        '''
+        指定游戏玩家为电脑
+        '''
+        self.player = 'computer'
+
+    def load_setting(self, setting):
+        '''
+        加载游戏设置
+        :param setting: 要加载的设置
+        :return 加载的设置，与传入的setting相同
+        '''
+        self.setting = setting
+        return setting
+
+    def start_game_by_human(self):
+        '''
+        在游戏玩家为人类的情况下启动游戏
+        '''
+        self.set_player_human()
+        while True:
+            while True:
+                _, _, terminal = self.frame_step()
+                if terminal:
+                    if self.setting.SOUND_PLAY:
+                        self.sounds['hit'].play()
+                    break
+            self.end_window()
+
+    def end_window(self):
+        '''
+        游戏结束界面，非人类游玩时不需要使用
+        '''
+        # TODO: 把end_window封装
+
+        gameover_x = (self.setting.SCREENWIDTH -
+                      self.images['gameover'].get_width()) / 2
+        gameover_y = (self.floor.y - self.images['gameover'].get_height()) / 2
+
+        while True:
+            # 通过pygame.event模块，不断获取当前发生的事件
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    quit()
+                # 按下空格时，从结束界面返回，切换到下一界面
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    return
+            self.screen.blit(self.images['bgpic'], (0, 0))
+            self.screen.blit(self.floor.image, (0, self.floor.y))
+            self.screen.blit(self.images['gameover'], (gameover_x, gameover_y))
+            pygame.display.update()
+            # 调整帧速率
+            self.gameclock.tick(self.setting.FPS)
+
+    def frame_step(self, action=[0, 0]):
         '''
         执行传入的action并返回这一帧的奖励和训练用图像
         :param action: 传入的动作
@@ -85,19 +150,43 @@ class GameState(LoggerSubject):
         reward = 0.1
         terminal = False
 
-        # 根据当前采取的行动(action)，确定小鸟是否拍打翅膀
-        if action[1] == 1 and action[0] == 0:
-            self.bird.flap = True
-            if self.setting.SOUND_PLAY:
-                self.sounds['flap'].play()
-        elif action[0] == 1 and action[1] == 0:
-            self.bird.flap = False
+        """
+        确定小鸟此刻的动作
+        若游戏玩家为电脑，则根据传入的action确定动作
+        若游戏玩家为人类，则监测键盘输入
+        """
+        if self.player == 'computer':
+            # 根据当前采取的行动(action)，确定小鸟是否拍打翅膀
+            if action[1] == 1 and action[0] == 0:
+                self.bird.flap = True
+            elif action[0] == 1 and action[1] == 0:
+                self.bird.flap = False
+            else:
+                # 如果检测到非法的action传入，生成错误日志并退出程序
+                # 目前该错误理论上不会被触发
+                self.generate_log(message='Error: when model playing game, an invalid action is received.',
+                                  level='error', location=os.path.split(__file__)[1])
+                sys.exit(1)
+        elif self.player == 'human':
+            # 通过pygame.event模块，不断获取当前发生的事件
+            # pygame启动后输入法可能被偷偷调整为中文，导致字母按下没有反应。
+            # 启动游戏后若出现此问题，可以用快捷键切输入法中英文后重试
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    quit()
+                if event.type == pygame.KEYDOWN:
+                    # 按下空格使小鸟爬升
+                    if event.key == pygame.K_SPACE:
+                        self.bird.flap = True
         else:
-            # 如果检测到非法的action传入，生成错误日志并退出程序
-            # 目前该错误理论上不会被触发
-            self.generate_log(message='Fatal error: gamestate received invalid action!',
+            # 若游戏玩家非法，生成错误日志并退出
+            self.generate_log(message='Error: invalid game player.',
                               level='error', location=os.path.split(__file__)[1])
             sys.exit(1)
+
+        # 若小鸟此刻拍动翅膀，且设置规定游戏播放声音，则播放拍翅膀的音效
+        if self.bird.flap and self.setting.SOUND_PLAY:
+            self.sounds['flap'].play()
 
         """
         更新所有元素的位置

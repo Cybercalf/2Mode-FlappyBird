@@ -8,8 +8,7 @@ import numpy as np
 import shutil
 import network.flappybird_network as network
 import flappybird.settings
-import flappybird.dqn_mode_gamestate as gamestate_for_model
-import flappybird.human_mode_gamestate as gamestate_for_human
+from flappybird.game_manager import GameManager as FlappyBirdGameManager
 import sys
 import os
 import time
@@ -190,12 +189,13 @@ class ProgramManager(LoggerSubject):
         """
         gamestate_setting = flappybird.settings.Setting()
         gamestate_setting.set_mode(mode='train')
-        flappyBird = gamestate_for_model.GameState(gamestate_setting)
+        flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
+        flappyBird_game_manager.set_player_computer()
         optimizer = torch.optim.RMSprop(model.parameters(), lr=options.lr)
         ceriterion = torch.nn.MSELoss()
 
         action = [1, 0]
-        o, r, terminal = flappyBird.frame_step(action)
+        o, r, terminal = flappyBird_game_manager.frame_step(action)
         o = self.preprocess(o)
         model.set_initial_state()
 
@@ -208,7 +208,7 @@ class ProgramManager(LoggerSubject):
         """
         for i in range(options.observation):
             action = model.get_action_randomly()
-            o, r, terminal = flappyBird.frame_step(action)
+            o, r, terminal = flappyBird_game_manager.frame_step(action)
             o = self.preprocess(o)
             model.store_transition(o, action, r, terminal)
 
@@ -225,7 +225,7 @@ class ProgramManager(LoggerSubject):
 
                 # 模型依据自身经验决定这一帧采取的action，传入gamestate，获得这一帧的观测图像、奖励值、游戏是否中止
                 action = model.get_action()
-                o_next, r, terminal = flappyBird.frame_step(action)
+                o_next, r, terminal = flappyBird_game_manager.frame_step(action)
                 total_reward += options.gamma**model.time_step * r
 
                 # 对这一帧图像做预处理
@@ -363,17 +363,18 @@ class ProgramManager(LoggerSubject):
         '''
         model.set_eval()
         avg_time_step = 0.
+        gamestate_setting = flappybird.settings.Setting()
+        gamestate_setting.set_mode(mode='train')
+        flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
+        flappyBird_game_manager.set_player_computer()
         for test_case in range(test_episode_num):
             model.time_step = 0
-            gamestate_setting = flappybird.settings.Setting()
-            gamestate_setting.set_mode(mode='train')
-            flappyBird = gamestate_for_model.GameState(gamestate_setting)
-            o, r, terminal = flappyBird.frame_step([1, 0])
+            o, r, terminal = flappyBird_game_manager.frame_step([1, 0])
             o = self.preprocess(o)
             model.set_initial_state()
             while True:
                 action = model.get_optim_action()
-                o, r, terminal = flappyBird.frame_step(action)
+                o, r, terminal = flappyBird_game_manager.frame_step(action)
                 if terminal:
                     break
                 o = self.preprocess(o)
@@ -395,14 +396,16 @@ class ProgramManager(LoggerSubject):
         '''
         try:
             if player == 'human':
-                game = gamestate_for_human.FlappyBirdGameManager()
-                game.game_start(with_frame_step=True)
+                setting = flappybird.settings.Setting()
+                setting.set_mode('play')
+                game = FlappyBirdGameManager(setting=setting)
+                game.start_game_by_human()
             elif player == 'computer':
                 self.play_game_with_model(
                     model_file_path=args.model_path,
                     cuda=args.cuda)
         except AttributeError as e:
-            self.generate_log(message='Error raised when game start. Type: {}, description: {}'.format(
+            self.generate_log(message='Error caught. Type: {}, description: {}'.format(
                 type(e), e),
                 level='error', location=os.path.split(__file__)[1])
 
@@ -414,24 +417,28 @@ class ProgramManager(LoggerSubject):
         :param best: if the model is best or not
         '''
 
-        # 调试输出
+        # 加载模型
         self.generate_log(
             message='load pretrained model file: ' + model_file_path,
             level='info', location=os.path.split(__file__)[1])
         model = network.FlappyBirdNetwork(epsilon=0., mem_size=0, cuda=cuda)
         self.load_checkpoint(model_file_path, model)
-        model.set_eval()
-        gamestate_setting = flappybird.settings.Setting()
-        gamestate_setting.set_mode('play')
-        flappyBird = gamestate_for_model.GameState(gamestate_setting)
-        flappyBird.register_observer(self.console_info_logger, 'info')
-        flappyBird.register_observer(self.console_error_logger, 'error')
         model.set_initial_state()
         if cuda:
             model = model.cuda()
+        model.set_eval()
+
+        # 初始化游戏
+        gamestate_setting = flappybird.settings.Setting()
+        gamestate_setting.set_mode('play')
+        flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
+        flappyBird_game_manager.set_player_computer()
+        flappyBird_game_manager.register_observer(self.console_info_logger, 'info')
+        flappyBird_game_manager.register_observer(self.console_error_logger, 'error')
+        
         while True:
             action = model.get_optim_action()
-            o, r, terminal = flappyBird.frame_step(action)
+            o, r, terminal = flappyBird_game_manager.frame_step(action)
             if terminal:
                 break
             o = self.preprocess(o)
