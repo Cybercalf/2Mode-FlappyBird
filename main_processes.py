@@ -399,6 +399,9 @@ class ProgramManager(LoggerSubject):
                 setting = flappybird.settings.Setting()
                 setting.set_mode('play')
                 game = FlappyBirdGameManager(setting=setting)
+                game.set_player_human()
+                game.register_observer(self.console_info_logger, 'info')
+                game.register_observer(self.console_error_logger, 'error')
                 game.start_game_by_human()
             elif player == 'computer':
                 self.play_game_with_model(

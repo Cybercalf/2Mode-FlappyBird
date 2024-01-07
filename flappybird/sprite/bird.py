@@ -1,14 +1,15 @@
 import pygame
 import os
+from .interface import DrawableSprite
 
 
-class Bird(pygame.sprite.Sprite):
+class Bird(DrawableSprite):
     '''
     小鸟
     '''
 
     def __init__(self, x, y, setting):
-        pygame.sprite.Sprite.__init__(self)
+        super().__init__()
 
         self.setting = setting
 
@@ -71,6 +72,3 @@ class Bird(pygame.sprite.Sprite):
         self.frame_idx = (self.frame_idx + 1) % int(self.setting.FPS / 6)
         self.idx = (self.frame_idx % 4)
         self.image = self.images['bird0_' + self.img_frames[self.idx]]
-
-    def draw(self, surface: pygame.Surface):
-        surface.blit(self.image, self.rect)

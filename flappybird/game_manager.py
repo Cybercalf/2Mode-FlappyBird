@@ -224,7 +224,7 @@ class GameManager(LoggerSubject):
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
         # 目前小鸟原则上不会飞出屏幕
-        if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
+        if self.bird.rect.y > self.floor.rect.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
                 self.bird, self.pipe_manager.pipe_group):
             terminal = True
             reward = -5
