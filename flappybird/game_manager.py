@@ -3,14 +3,16 @@ import pygame
 import os
 import sys
 from flappybird.settings import Setting
-from flappybird.assets_process import load_sounds, load_images
-from flappybird.sprites.bird import Bird
-from flappybird.sprites.floor import Floor
-from flappybird.sprites.pipe import PipeManager
-from flappybird.sprites.background import NormalBG, BlackBG
-from flappybird.sprites.score import ScoreManager
+# from flappybird.assets_process import load_sounds, load_images
+from flappybird.sprite.bird import Bird
+from flappybird.sprite.floor import Floor
+from flappybird.sprite.pipe import PipeManager
+from flappybird.sprite.background import NormalBG, BlackBG
+from flappybird.sprite.score import ScoreManager
 import flappybird.function
 from util.logger.logger_subject import LoggerSubject
+from flappybird.sound.sound_manager import SoundManager
+from flappybird.window.end_window import EndWindow
 
 
 class GameManager(LoggerSubject):
@@ -42,10 +44,14 @@ class GameManager(LoggerSubject):
 
         # 加载游戏音效文件
         # TODO: 尝试封装有关游戏音效播放的代码
-        self.sounds = load_sounds()
+        # self.sounds = load_sounds()
+        self.sounds = SoundManager()
 
         # 加载游戏图片文件
-        self.images = load_images()
+        # self.images = load_images()
+
+        # 游戏窗口
+        self.end_window = EndWindow(self.setting)
 
         """
         生成实例：游戏背景、地板、小鸟
@@ -63,8 +69,9 @@ class GameManager(LoggerSubject):
         self.score_manager = ScoreManager(setting=setting)
 
         if self.setting.SOUND_PLAY:
-            self.sounds['background'].set_volume(0.1)
-            self.sounds['background'].play(-1)
+            # self.sounds['background'].set_volume(0.1)
+            # self.sounds['background'].play(-1)
+            self.sounds.play('background', volume=0.1, loop=True)
 
     def game_reset(self):
         '''
@@ -109,34 +116,36 @@ class GameManager(LoggerSubject):
                 _, _, terminal = self.frame_step()
                 if terminal:
                     if self.setting.SOUND_PLAY:
-                        self.sounds['hit'].play()
+                        # self.sounds['hit'].play()
+                        self.sounds.play('hit')
                     break
-            self.end_window()
+            # self.end_window()
+            self.end_window.show(self.screen)
 
-    def end_window(self):
-        '''
-        游戏结束界面，非人类游玩时不需要使用
-        '''
-        # TODO: 把end_window封装
+    # def end_window(self):
+    #     '''
+    #     游戏结束界面，非人类游玩时不需要使用
+    #     '''
+    #     # TODO: 把end_window封装
 
-        gameover_x = (self.setting.SCREENWIDTH -
-                      self.images['gameover'].get_width()) / 2
-        gameover_y = (self.floor.y - self.images['gameover'].get_height()) / 2
+    #     gameover_x = (self.setting.SCREENWIDTH -
+    #                   self.images['gameover'].get_width()) / 2
+    #     gameover_y = (self.floor.y - self.images['gameover'].get_height()) / 2
 
-        while True:
-            # 通过pygame.event模块，不断获取当前发生的事件
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    quit()
-                # 按下空格时，从结束界面返回，切换到下一界面
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    return
-            self.screen.blit(self.images['bgpic'], (0, 0))
-            self.screen.blit(self.floor.image, (0, self.floor.y))
-            self.screen.blit(self.images['gameover'], (gameover_x, gameover_y))
-            pygame.display.update()
-            # 调整帧速率
-            self.gameclock.tick(self.setting.FPS)
+    #     while True:
+    #         # 通过pygame.event模块，不断获取当前发生的事件
+    #         for event in pygame.event.get():
+    #             if event.type == pygame.QUIT:
+    #                 quit()
+    #             # 按下空格时，从结束界面返回，切换到下一界面
+    #             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+    #                 return
+    #         self.screen.blit(self.images['bgpic'], (0, 0))
+    #         self.screen.blit(self.floor.image, (0, self.floor.y))
+    #         self.screen.blit(self.images['gameover'], (gameover_x, gameover_y))
+    #         pygame.display.update()
+    #         # 调整帧速率
+    #         self.gameclock.tick(self.setting.FPS)
 
     def frame_step(self, action=[0, 0]):
         '''
@@ -186,7 +195,8 @@ class GameManager(LoggerSubject):
 
         # 若小鸟此刻拍动翅膀，且设置规定游戏播放声音，则播放拍翅膀的音效
         if self.bird.flap and self.setting.SOUND_PLAY:
-            self.sounds['flap'].play()
+            # self.sounds['flap'].play()
+            self.sounds.play('flap')
 
         """
         更新所有元素的位置
@@ -209,7 +219,8 @@ class GameManager(LoggerSubject):
             self.score_manager.score_increase_1()
             reward = 1
             if self.setting.SOUND_PLAY:
-                self.sounds['score'].play()
+                # self.sounds['score'].play()
+                self.sounds.play('score')
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
         # 目前小鸟原则上不会飞出屏幕
