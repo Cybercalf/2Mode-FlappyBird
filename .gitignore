@@ -168,3 +168,4 @@ model/
 temp*
 *.sh
 study_notes/
+**/.vscode

@@ -1,3 +1,4 @@
+import os
 import sys
 import argparse
 import main_processes
@@ -56,21 +57,30 @@ if __name__ == '__main__':
     '''
     args = parser.parse_args()
 
+    program_manager = main_processes.ProgramManager()
+
     # 如果模型路径没有被传入程序，则开始真人游玩
     if args.model_path == '' or args.model_path is None:
-        print('[launch.py] argument --model not received, launch game at human mode')
-        main_processes.play_game(player='human')
+        program_manager.generate_log(message='argument --model not received, launch game at human mode',
+                                     level='info',
+                                     location=os.path.split(__file__)[1])
+        program_manager.play_game(player='human')
     # 测试cuda是否可用
     elif args.cuda and not torch.cuda.is_available():
-        print(
-            '[launch.py] Error: CUDA is not available, maybe you should not set --cuda')
+        program_manager.generate_log(message='Error: CUDA is not available, maybe you should not set --cuda',
+                                     level='error',
+                                     location=os.path.split(__file__)[1])
         sys.exit(1)
     # 由模型在游戏环境中游玩或训练
     else:
-        print('[launch.py] launch program with a model given')
+        program_manager.generate_log(message='launch program with a model given',
+                                     level='info',
+                                     location=os.path.split(__file__)[1])
         if args.cuda:
-            print('[launch.py] run program with GPU support')
+            program_manager.generate_log(message='run program with GPU support',
+                                         level='info',
+                                         location=os.path.split(__file__)[1])
         if args.train:
-            main_processes.train_model(args)
+            program_manager.train_model(args)
         else:
-            main_processes.play_game(player='computer', args=args)
+            program_manager.play_game(player='computer', args=args)

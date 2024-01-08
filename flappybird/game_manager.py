@@ -1,28 +1,34 @@
-# TODO: 尝试把游戏的一些逻辑（如update各个sprite的部分）进一步封装，使其能够复用于其他游戏
+# TODO: 尝试把游戏判断分数增加与碰撞检测的部分进一步封装
 import pygame
+import os
 import sys
 from flappybird.settings import Setting
-from flappybird.assets_process import load_sounds
-from flappybird.sprites.bird import Bird
-from flappybird.sprites.floor import Floor
-from flappybird.sprites.pipe import PipeManager
-from flappybird.sprites.background import NormalBG, BlackBG
-from flappybird.sprites.score import ScoreManager
+from flappybird.sprite.bird import Bird
+from flappybird.sprite.floor import Floor
+from flappybird.sprite.pipe import PipeManager
+from flappybird.sprite.background import NormalBG, BlackBG
+from flappybird.sprite.score import ScoreManager
 import flappybird.function
+from util.logger.logger_subject import LoggerSubject
+from flappybird.sound.sound_manager import SoundManager
+from flappybird.window.end_window import EndWindow
 
 
-class GameState:
+class GameManager(LoggerSubject):
     '''
     管理FlappyBird游戏各窗口切换、图形渲染、判断游戏结束条件等功能的类，
     启动游戏也是从这里开始
     '''
 
     def __init__(self, setting: Setting):
-        '''
-        定义游戏整体的各种状态与参数
-        '''
 
+        super().__init__()
+
+        # 初始化pygame
         pygame.init()
+
+        # 指定游戏玩家
+        self.player = 'human'
 
         # 加载设置
         self.setting = setting
@@ -36,8 +42,10 @@ class GameState:
         self.gameclock = pygame.time.Clock()
 
         # 加载游戏音效文件
-        # TODO: 尝试用观察者模式等方法，封装有关游戏音效播放的代码
-        self.sounds = load_sounds()
+        self.sounds = SoundManager()
+
+        # 游戏窗口
+        self.end_window = EndWindow(self.setting)
 
         """
         生成实例：游戏背景、地板、小鸟
@@ -55,8 +63,9 @@ class GameState:
         self.score_manager = ScoreManager(setting=setting)
 
         if self.setting.SOUND_PLAY:
-            self.sounds['background'].set_volume(0.1)
-            self.sounds['background'].play(-1)
+            # self.sounds['background'].set_volume(0.1)
+            # self.sounds['background'].play(-1)
+            self.sounds.play('background', volume=0.1, loop=True)
 
     def game_reset(self):
         '''
@@ -70,7 +79,44 @@ class GameState:
         self.pipe_manager = PipeManager(setting=self.setting)
         pass
 
-    def frame_step(self, action):
+    def set_player_human(self):
+        '''
+        指定游戏玩家为人类
+        '''
+        self.player = 'human'
+
+    def set_player_computer(self):
+        '''
+        指定游戏玩家为电脑
+        '''
+        self.player = 'computer'
+
+    def load_setting(self, setting):
+        '''
+        加载游戏设置
+        :param setting: 要加载的设置
+        :return 加载的设置，与传入的setting相同
+        '''
+        self.setting = setting
+        return setting
+
+    def start_game_by_human(self):
+        '''
+        在游戏玩家为人类的情况下启动游戏
+        '''
+        self.set_player_human()
+        while True:
+            while True:
+                _, _, terminal = self.frame_step()
+                if terminal:
+                    if self.setting.SOUND_PLAY:
+                        # self.sounds['hit'].play()
+                        self.sounds.play('hit')
+                    break
+            # self.end_window()
+            self.end_window.show(self.screen)
+
+    def frame_step(self, action=[0, 0]):
         '''
         执行传入的action并返回这一帧的奖励和训练用图像
         :param action: 传入的动作
@@ -82,17 +128,44 @@ class GameState:
         reward = 0.1
         terminal = False
 
-        # 根据当前采取的行动(action)，确定小鸟是否拍打翅膀
-        if action[1] == 1 and action[0] == 0:
-            self.bird.flap = True
-            if self.setting.SOUND_PLAY:
-                self.sounds['flap'].play()
-        elif action[0] == 1 and action[1] == 0:
-            self.bird.flap = False
+        """
+        确定小鸟此刻的动作
+        若游戏玩家为电脑，则根据传入的action确定动作
+        若游戏玩家为人类，则监测键盘输入
+        """
+        if self.player == 'computer':
+            # 根据当前采取的行动(action)，确定小鸟是否拍打翅膀
+            if action[1] == 1 and action[0] == 0:
+                self.bird.flap = True
+            elif action[0] == 1 and action[1] == 0:
+                self.bird.flap = False
+            else:
+                # 如果检测到非法的action传入，生成错误日志并退出程序
+                # 目前该错误理论上不会被触发
+                self.generate_log(message='Error: when model playing game, an invalid action is received.',
+                                  level='error', location=os.path.split(__file__)[1])
+                sys.exit(1)
+        elif self.player == 'human':
+            # 通过pygame.event模块，不断获取当前发生的事件
+            # pygame启动后输入法可能被偷偷调整为中文，导致字母按下没有反应。
+            # 启动游戏后若出现此问题，可以用快捷键切输入法中英文后重试
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    quit()
+                if event.type == pygame.KEYDOWN:
+                    # 按下空格使小鸟爬升
+                    if event.key == pygame.K_SPACE:
+                        self.bird.flap = True
         else:
-            print(
-                '[dqn_mode_gamestate] Fatal error: gamestate received invalid action!')
+            # 若游戏玩家非法，生成错误日志并退出
+            self.generate_log(message='Error: invalid game player.',
+                              level='error', location=os.path.split(__file__)[1])
             sys.exit(1)
+
+        # 若小鸟此刻拍动翅膀，且设置规定游戏播放声音，则播放拍翅膀的音效
+        if self.bird.flap and self.setting.SOUND_PLAY:
+            # self.sounds['flap'].play()
+            self.sounds.play('flap')
 
         """
         更新所有元素的位置
@@ -115,19 +188,19 @@ class GameState:
             self.score_manager.score_increase_1()
             reward = 1
             if self.setting.SOUND_PLAY:
-                self.sounds['score'].play()
+                # self.sounds['score'].play()
+                self.sounds.play('score')
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
         # 目前小鸟原则上不会飞出屏幕
-        if self.bird.rect.y > self.floor.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
+        if self.bird.rect.y > self.floor.rect.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
                 self.bird, self.pipe_manager.pipe_group):
             terminal = True
             reward = -5
             # 在控制台打印分数
             if self.setting.PRINT_CONSOLE_LOG:
-                print(
-                    "[Gamestate] Game over! Score: {}".format(
-                        self.score_manager.score))
+                self.generate_log(message="Game over! Score: {}".format(self.score_manager.score),
+                                  level='info', location=os.path.split(__file__)[1])
             self.game_reset()
 
         """

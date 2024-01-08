@@ -1,14 +1,15 @@
 import pygame
 import random
+from .interface import GameElement, GameSprite
 
 
-class Pipe(pygame.sprite.Sprite):
+class Pipe(GameSprite):
     '''
     水管
     '''
 
     def __init__(self, x, y, setting, upwards=True):
-        pygame.sprite.Sprite.__init__(self)
+        super().__init__()
         if upwards:
             self.image = pygame.image.load('assets/sprites/pipe_up.png')
             self.rect = self.image.get_rect()
@@ -27,7 +28,7 @@ class Pipe(pygame.sprite.Sprite):
         self.rect.x += self.x_vel
 
 
-class PipeManager(pygame.sprite.Group):
+class PipeManager(GameElement):
     '''
     管理水管的类，包含水管列表
     '''
@@ -40,8 +41,8 @@ class PipeManager(pygame.sprite.Group):
     # 上下水管的间距
     pipe_gap = 130
 
-    def __init__(self, *sprites, setting):
-        super().__init__(*sprites)
+    def __init__(self, setting):
+        super().__init__()
 
         self.setting = setting
 
@@ -73,7 +74,6 @@ class PipeManager(pygame.sprite.Group):
         '''
         1.移动每一根水管的位置（调用每一个Pipe的update()方法）
         2.如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
-        TODO: 更新水管的操作究竟是写在class内部还是外部更好？参考一下飞机大战
         '''
         # 对整个Group使用update()方法，会触发Group内每一个Sprite（水管）的update()方法，水管更改位置的算法写在Pipe类的update()里面，很简单
         self.pipe_group.update()
@@ -97,7 +97,9 @@ class PipeManager(pygame.sprite.Group):
         '''
         给Group类添加一个类似于Sprite的update方法
         '''
+        super().update()
         self.update_pipe_group()
 
-    def draw(self, canvas):
-        self.pipe_group.draw(canvas)
+    def draw(self, surface):
+        super().draw(surface)
+        self.pipe_group.draw(surface)
