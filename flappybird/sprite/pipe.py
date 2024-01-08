@@ -1,14 +1,15 @@
 import pygame
 import random
+from .interface import GameElement, GameSprite
 
 
-class Pipe(pygame.sprite.Sprite):
+class Pipe(GameSprite):
     '''
     水管
     '''
 
     def __init__(self, x, y, setting, upwards=True):
-        pygame.sprite.Sprite.__init__(self)
+        super().__init__()
         if upwards:
             self.image = pygame.image.load('assets/sprites/pipe_up.png')
             self.rect = self.image.get_rect()
@@ -27,11 +28,10 @@ class Pipe(pygame.sprite.Sprite):
         self.rect.x += self.x_vel
 
 
-class PipeManager(pygame.sprite.Group):
+class PipeManager(GameElement):
     '''
     管理水管的类，包含水管列表
     '''
-    # TODO: 引入接口来提高可读性
     # 以下的、函数外定义的变量是类的静态变量
 
     # 水管个数（上下同时出现的一对水管算1个）
@@ -41,8 +41,8 @@ class PipeManager(pygame.sprite.Group):
     # 上下水管的间距
     pipe_gap = 130
 
-    def __init__(self, *sprites, setting):
-        super().__init__(*sprites)
+    def __init__(self, setting):
+        super().__init__()
 
         self.setting = setting
 
@@ -97,7 +97,9 @@ class PipeManager(pygame.sprite.Group):
         '''
         给Group类添加一个类似于Sprite的update方法
         '''
+        super().update()
         self.update_pipe_group()
 
-    def draw(self, canvas):
-        self.pipe_group.draw(canvas)
+    def draw(self, surface):
+        super().draw(surface)
+        self.pipe_group.draw(surface)

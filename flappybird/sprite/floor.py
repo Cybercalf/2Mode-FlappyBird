@@ -1,8 +1,8 @@
 import pygame
-from .interface import DrawableSprite
+from .interface import GameSprite
 
 
-class Floor(DrawableSprite):
+class Floor(GameSprite):
     '''
     地板
     '''
@@ -29,6 +29,7 @@ class Floor(DrawableSprite):
         '''
         定义地板更新自身状态的方法
         '''
+        super().update()
         # 计算地板图片与背景图片的宽度之差
         # 地板x坐标左移，若左移到极限则复位
         floor_gap = self.get_width() - self.setting.SCREENWIDTH

@@ -1,26 +1,28 @@
 import pygame
+from .interface import GameElement, GameSprite
 
 
-class Digit(pygame.sprite.Sprite):
+class Digit(GameSprite):
     '''
     单个数字
     '''
 
     def __init__(self, x, y, digit):
-        pygame.sprite.Sprite.__init__(self)
+        super().__init__()
         self.x = x
         self.y = y
         self.image = pygame.image.load(
             'assets/sprites/number_score_0{}.png'.format(digit))
 
 
-class ScoreManager(pygame.sprite.Group):
+class ScoreManager(GameElement):
     '''
     管理分数变化与显示的类
     '''
+    # TODO: 尝试把分数变化结合进update()方法中
 
-    def __init__(self, *sprites, setting):
-        super().__init__(*sprites)
+    def __init__(self, setting):
+        super().__init__()
 
         self.setting = setting
 
@@ -37,13 +39,11 @@ class ScoreManager(pygame.sprite.Group):
         '''
         self.score += 1
 
-    def update(self):
-        pass
-
     def draw(self, surface):
         '''
         将分数图片渲染在指定的画面上
         '''
+        super().draw(surface)
 
         score_str = str(self.score)
 

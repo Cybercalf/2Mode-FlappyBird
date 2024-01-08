@@ -1,9 +1,8 @@
-# TODO: 尝试把游戏的一些逻辑（如update各个sprite的部分）进一步封装，使其能够复用于其他游戏
+# TODO: 尝试把游戏判断分数增加与碰撞检测的部分进一步封装
 import pygame
 import os
 import sys
 from flappybird.settings import Setting
-# from flappybird.assets_process import load_sounds, load_images
 from flappybird.sprite.bird import Bird
 from flappybird.sprite.floor import Floor
 from flappybird.sprite.pipe import PipeManager
@@ -43,12 +42,7 @@ class GameManager(LoggerSubject):
         self.gameclock = pygame.time.Clock()
 
         # 加载游戏音效文件
-        # TODO: 尝试封装有关游戏音效播放的代码
-        # self.sounds = load_sounds()
         self.sounds = SoundManager()
-
-        # 加载游戏图片文件
-        # self.images = load_images()
 
         # 游戏窗口
         self.end_window = EndWindow(self.setting)
@@ -121,31 +115,6 @@ class GameManager(LoggerSubject):
                     break
             # self.end_window()
             self.end_window.show(self.screen)
-
-    # def end_window(self):
-    #     '''
-    #     游戏结束界面，非人类游玩时不需要使用
-    #     '''
-    #     # TODO: 把end_window封装
-
-    #     gameover_x = (self.setting.SCREENWIDTH -
-    #                   self.images['gameover'].get_width()) / 2
-    #     gameover_y = (self.floor.y - self.images['gameover'].get_height()) / 2
-
-    #     while True:
-    #         # 通过pygame.event模块，不断获取当前发生的事件
-    #         for event in pygame.event.get():
-    #             if event.type == pygame.QUIT:
-    #                 quit()
-    #             # 按下空格时，从结束界面返回，切换到下一界面
-    #             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-    #                 return
-    #         self.screen.blit(self.images['bgpic'], (0, 0))
-    #         self.screen.blit(self.floor.image, (0, self.floor.y))
-    #         self.screen.blit(self.images['gameover'], (gameover_x, gameover_y))
-    #         pygame.display.update()
-    #         # 调整帧速率
-    #         self.gameclock.tick(self.setting.FPS)
 
     def frame_step(self, action=[0, 0]):
         '''

@@ -1,9 +1,9 @@
 import pygame
 import os
-from .interface import DrawableSprite
+from .interface import GameSprite
 
 
-class Bird(DrawableSprite):
+class Bird(GameSprite):
     '''
     小鸟
     '''
@@ -44,13 +44,13 @@ class Bird(DrawableSprite):
         self.flap = False
 
         # 小鸟爬升时的各项初始参数
-        # self.y_vel_after_flap = -6 * 60 / FPS
         self.y_vel_after_flap = -5.5 * 60 / self.setting.FPS
 
     def update(self):
         '''
         定义小鸟更新自身状态的方法
         '''
+        super().update()
         # 如果小鸟爬升，将其在Y轴上的速度更改为初始值，同时重置爬升的标志
         if self.flap:
             self.y_vel = self.y_vel_after_flap

@@ -1,1 +1,1 @@
-# TODO: 让所有sprite继承自同一个接口类（起名可以起drawable）
+# TODO: image硬编码在每个类里是最好的方案吗？

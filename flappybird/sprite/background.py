@@ -1,8 +1,8 @@
 import pygame
-from .interface import DrawableSprite
+from .interface import GameSprite
 
 
-class Background(DrawableSprite):
+class Background(GameSprite):
     '''
     FlappyBird游戏背景
     '''
