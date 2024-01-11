@@ -1,5 +1,5 @@
 import pygame
-from .interface import GameElement, GameSprite
+from ..util.interface import GameElement, GameSprite, Counter
 
 
 class Digit(GameSprite):
@@ -12,32 +12,23 @@ class Digit(GameSprite):
         self.x = x
         self.y = y
         self.image = pygame.image.load(
-            'assets/sprites/number_score_0{}.png'.format(digit))
+            'flappybird/assets/sprites/number_score_0{}.png'.format(digit))
 
 
-class ScoreManager(GameElement):
+class ScoreManager(GameElement, Counter):
     '''
     管理分数变化与显示的类
     '''
-    # TODO: 尝试把分数变化结合进update()方法中
 
     def __init__(self, setting):
-        super().__init__()
+        Counter.__init__(self)
 
         self.setting = setting
-
-        self.score = 0
 
         self.digits = pygame.sprite.Group()
         for i in range(10):
             digit = Digit(0, 0, i)
             self.digits.add(digit)
-
-    def score_increase_1(self):
-        '''
-        游戏分数+1
-        '''
-        self.score += 1
 
     def draw(self, surface):
         '''
@@ -45,7 +36,7 @@ class ScoreManager(GameElement):
         '''
         super().draw(surface)
 
-        score_str = str(self.score)
+        score_str = str(self.get_score())
 
         # 确定绘制位置
         n = len(score_str)

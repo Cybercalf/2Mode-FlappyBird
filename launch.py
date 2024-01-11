@@ -1,8 +1,8 @@
 import os
 import sys
 import argparse
-import main_processes
 import torch.cuda
+import main_processes
 
 parser = argparse.ArgumentParser(description='2Mode-FlappyBird')
 

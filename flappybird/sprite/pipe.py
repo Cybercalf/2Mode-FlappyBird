@@ -1,6 +1,6 @@
 import pygame
 import random
-from .interface import GameElement, GameSprite
+from ..util.interface import GameElement, GameSprite
 
 
 class Pipe(GameSprite):
@@ -11,12 +11,12 @@ class Pipe(GameSprite):
     def __init__(self, x, y, setting, upwards=True):
         super().__init__()
         if upwards:
-            self.image = pygame.image.load('assets/sprites/pipe_up.png')
+            self.image = pygame.image.load('flappybird/assets/sprites/pipe_up.png')
             self.rect = self.image.get_rect()
             self.rect.x = x
             self.rect.top = y
         else:
-            self.image = pygame.image.load('assets/sprites/pipe_down.png')
+            self.image = pygame.image.load('flappybird/assets/sprites/pipe_down.png')
             self.rect = self.image.get_rect()
             self.rect.x = x
             self.rect.bottom = y

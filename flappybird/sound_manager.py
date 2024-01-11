@@ -13,12 +13,11 @@ class SoundManager:
         从磁盘中加载游戏所需的音效文件
         '''
         SOUNDS = {}
-        SOUNDS['background'] = pygame.mixer.Sound(
-            'assets/audio/background.wav')
-        SOUNDS['die'] = pygame.mixer.Sound('assets/audio/gameover.ogg')
-        SOUNDS['hit'] = pygame.mixer.Sound('assets/audio/hit.ogg')
-        SOUNDS['score'] = pygame.mixer.Sound('assets/audio/score.ogg')
-        SOUNDS['flap'] = pygame.mixer.Sound('assets/audio/jump.ogg')
+        SOUNDS['background'] = pygame.mixer.Sound('flappybird/assets/audio/background.wav')
+        SOUNDS['die'] = pygame.mixer.Sound('flappybird/assets/audio/gameover.ogg')
+        SOUNDS['hit'] = pygame.mixer.Sound('flappybird/assets/audio/hit.ogg')
+        SOUNDS['score'] = pygame.mixer.Sound('flappybird/assets/audio/score.ogg')
+        SOUNDS['flap'] = pygame.mixer.Sound('flappybird/assets/audio/jump.ogg')
         return SOUNDS
 
     def play(self, key, volume=1, loop=False):

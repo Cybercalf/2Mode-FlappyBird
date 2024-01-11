@@ -1,5 +1,5 @@
 import pygame
-from .interface import GameSprite
+from ..util.interface import GameSprite
 
 
 class Background(GameSprite):
@@ -18,7 +18,7 @@ class BlackBG(Background):
 
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load('assets/sprites/bg_black.png')
+        self.image = pygame.image.load('flappybird/assets/sprites/bg_black.png')
         self.rect = self.image.get_rect()
 
 
@@ -29,5 +29,5 @@ class NormalBG(Background):
 
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load('assets/sprites/bg_day.png')
+        self.image = pygame.image.load('flappybird/assets/sprites/bg_day.png')
         self.rect = self.image.get_rect()
