@@ -1,5 +1,5 @@
 import pygame
-from .interface import GameSprite
+from ..util.interface import GameSprite
 
 
 class Floor(GameSprite):
@@ -13,7 +13,7 @@ class Floor(GameSprite):
         self.setting = setting
 
         # 地板图片
-        self.image = pygame.image.load('assets/sprites/land.png')
+        self.image = pygame.image.load('flappybird/assets/sprites/land.png')
 
         self.rect = self.image.get_rect()
         # 地板在水平方向上的位置

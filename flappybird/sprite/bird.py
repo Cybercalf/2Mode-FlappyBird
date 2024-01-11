@@ -1,6 +1,6 @@
 import pygame
 import os
-from .interface import GameSprite
+from ..util.interface import GameSprite
 
 
 class Bird(GameSprite):
@@ -20,10 +20,10 @@ class Bird(GameSprite):
 
         # 从磁盘中加载图片文件
         self.images = {}
-        for image in os.listdir('assets/sprites'):
+        for image in os.listdir('flappybird/assets/sprites'):
             name, extension = os.path.splitext(image)
             if name.startswith('bird'):
-                path = os.path.join('assets/sprites', image)
+                path = os.path.join('flappybird/assets/sprites', image)
                 self.images[name] = pygame.image.load(path)
 
         self.image = self.images['bird0_' + self.img_frames[self.idx]]

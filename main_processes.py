@@ -400,8 +400,8 @@ class ProgramManager(LoggerSubject):
                 setting.set_mode('play')
                 game = FlappyBirdGameManager(setting=setting)
                 game.set_player_human()
-                game.register_observer(self.console_info_logger, 'info')
-                game.register_observer(self.console_error_logger, 'error')
+                # game.register_observer(self.console_info_logger, 'info')
+                # game.register_observer(self.console_error_logger, 'error')
                 game.start_game_by_human()
             elif player == 'computer':
                 self.play_game_with_model(
@@ -436,8 +436,8 @@ class ProgramManager(LoggerSubject):
         gamestate_setting.set_mode('play')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
-        flappyBird_game_manager.register_observer(self.console_info_logger, 'info')
-        flappyBird_game_manager.register_observer(self.console_error_logger, 'error')
+        # flappyBird_game_manager.register_observer(self.console_info_logger, 'info')
+        # flappyBird_game_manager.register_observer(self.console_error_logger, 'error')
         
         while True:
             action = model.get_optim_action()

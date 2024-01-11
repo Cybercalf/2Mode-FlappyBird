@@ -1,6 +1,6 @@
 # TODO: 尝试把游戏判断分数增加与碰撞检测的部分进一步封装
 import pygame
-import os
+# import os
 import sys
 from flappybird.settings import Setting
 from flappybird.sprite.bird import Bird
@@ -8,13 +8,13 @@ from flappybird.sprite.floor import Floor
 from flappybird.sprite.pipe import PipeManager
 from flappybird.sprite.background import NormalBG, BlackBG
 from flappybird.sprite.score import ScoreManager
-import flappybird.function
-from util.logger.logger_subject import LoggerSubject
+import flappybird.util.function
 from flappybird.sound.sound_manager import SoundManager
 from flappybird.window.end_window import EndWindow
+from flappybird.util.custom_exception import InvalidActionException, InvalidPlayerException
 
 
-class GameManager(LoggerSubject):
+class GameManager():
     '''
     管理FlappyBird游戏各窗口切换、图形渲染、判断游戏结束条件等功能的类，
     启动游戏也是从这里开始
@@ -22,7 +22,7 @@ class GameManager(LoggerSubject):
 
     def __init__(self, setting: Setting):
 
-        super().__init__()
+        # super().__init__()
 
         # 初始化pygame
         pygame.init()
@@ -47,6 +47,9 @@ class GameManager(LoggerSubject):
         # 游戏窗口
         self.end_window = EndWindow(self.setting)
 
+        # 游戏是否中止
+        self.terminated = False
+
         """
         生成实例：游戏背景、地板、小鸟
         生成实例：水管管理类和游戏分数管理类
@@ -63,21 +66,19 @@ class GameManager(LoggerSubject):
         self.score_manager = ScoreManager(setting=setting)
 
         if self.setting.SOUND_PLAY:
-            # self.sounds['background'].set_volume(0.1)
-            # self.sounds['background'].play(-1)
             self.sounds.play('background', volume=0.1, loop=True)
 
     def game_reset(self):
         '''
         重置游戏的各项参数
         '''
-        self.score_manager.score = 0
+        self.score_manager.reset_score()
         self.bird = Bird(
             x=self.setting.SCREENWIDTH * 0.2,
             y=self.setting.SCREENHEIGHT * 0.4,
             setting=self.setting)
         self.pipe_manager = PipeManager(setting=self.setting)
-        pass
+        self.terminated = False
 
     def set_player_human(self):
         '''
@@ -100,6 +101,18 @@ class GameManager(LoggerSubject):
         self.setting = setting
         return setting
 
+    def get_current_score(self):
+        '''
+        获取当前游戏的分数
+        '''
+        return self.score_manager.get_score()
+
+    def is_terminated(self):
+        '''
+        检查当前游戏是否中止
+        '''
+        return self.terminated
+
     def start_game_by_human(self):
         '''
         在游戏玩家为人类的情况下启动游戏
@@ -107,13 +120,11 @@ class GameManager(LoggerSubject):
         self.set_player_human()
         while True:
             while True:
-                _, _, terminal = self.frame_step()
-                if terminal:
+                _, _, _ = self.frame_step()
+                if self.is_terminated():
                     if self.setting.SOUND_PLAY:
-                        # self.sounds['hit'].play()
                         self.sounds.play('hit')
                     break
-            # self.end_window()
             self.end_window.show(self.screen)
 
     def frame_step(self, action=[0, 0]):
@@ -122,11 +133,15 @@ class GameManager(LoggerSubject):
         :param action: 传入的动作
         '''
 
+        # 如果游戏中止，重置游戏数据再进行游戏
+        if self.is_terminated():
+            self.game_reset()
+
         pygame.event.pump()
 
         # 初始化这一帧的奖励（reward）和游戏中止的信号变量（terminal）
         reward = 0.1
-        terminal = False
+        # terminal = False
 
         """
         确定小鸟此刻的动作
@@ -140,10 +155,9 @@ class GameManager(LoggerSubject):
             elif action[0] == 1 and action[1] == 0:
                 self.bird.flap = False
             else:
-                # 如果检测到非法的action传入，生成错误日志并退出程序
+                # 如果检测到非法的action传入，生成异常
                 # 目前该错误理论上不会被触发
-                self.generate_log(message='Error: when model playing game, an invalid action is received.',
-                                  level='error', location=os.path.split(__file__)[1])
+                raise InvalidActionException('When model playing game, an invalid action is received.')
                 sys.exit(1)
         elif self.player == 'human':
             # 通过pygame.event模块，不断获取当前发生的事件
@@ -157,9 +171,8 @@ class GameManager(LoggerSubject):
                     if event.key == pygame.K_SPACE:
                         self.bird.flap = True
         else:
-            # 若游戏玩家非法，生成错误日志并退出
-            self.generate_log(message='Error: invalid game player.',
-                              level='error', location=os.path.split(__file__)[1])
+            # 若游戏玩家非法，生成异常
+            raise InvalidPlayerException('Invalid game player.')
             sys.exit(1)
 
         # 若小鸟此刻拍动翅膀，且设置规定游戏播放声音，则播放拍翅膀的音效
@@ -178,14 +191,14 @@ class GameManager(LoggerSubject):
         如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
         具体实现过程写在PipeManager的update_pipe_group()方法中
         """
-        flappybird.function.update(self.floor, self.bird, self.pipe_manager)
+        flappybird.util.function.update(self.floor, self.bird, self.pipe_manager)
 
         # 检查这一帧小鸟是不是越过了一对水管。如果是，游戏分数+1，reward变成1
         # 判断小鸟前一帧的左侧、水管中心线与小鸟后一帧左侧的位置关系
         # 这里速度*1.01是为了修bug，不加的话分数无法增加，原因未知，可能和帧数有关
         if self.bird.rect.left + 1.01 * self.pipe_manager.get_first_pipe_up(
         ).x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
-            self.score_manager.score_increase_1()
+            self.score_manager.update_score()
             reward = 1
             if self.setting.SOUND_PLAY:
                 # self.sounds['score'].play()
@@ -195,19 +208,17 @@ class GameManager(LoggerSubject):
         # 目前小鸟原则上不会飞出屏幕
         if self.bird.rect.y > self.floor.rect.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
                 self.bird, self.pipe_manager.pipe_group):
-            terminal = True
+            # terminal = True
             reward = -5
-            # 在控制台打印分数
-            if self.setting.PRINT_CONSOLE_LOG:
-                self.generate_log(message="Game over! Score: {}".format(self.score_manager.score),
-                                  level='info', location=os.path.split(__file__)[1])
-            self.game_reset()
+
+            self.terminated = True
+            # self.game_reset()
 
         """
         在画布（屏幕）上绘制各个元素，供模型训练使用
         绘制顺序：背景、所有水管、地板（静止）、小鸟
         """
-        flappybird.function.draw(
+        flappybird.util.function.draw(
             self.black_bg,
             self.pipe_manager,
             self.floor.get_still_floor(),
@@ -222,7 +233,7 @@ class GameManager(LoggerSubject):
             在演示模式下重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
             绘制顺序：背景、所有水管、地板、分数、小鸟
             """
-            flappybird.function.redraw(
+            flappybird.util.function.redraw(
                 self.normal_bg,
                 self.pipe_manager,
                 self.floor,
@@ -236,7 +247,7 @@ class GameManager(LoggerSubject):
         self.gameclock.tick(self.setting.FPS)
 
         # 把这一帧的游戏画面、reward、terminal作为参数返回
-        return image_data, reward, terminal
+        return image_data, reward, self.terminated
 
 
 if __name__ == '__main__':

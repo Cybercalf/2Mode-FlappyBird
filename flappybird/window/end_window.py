@@ -1,8 +1,8 @@
 import pygame
-from ..sprite.interface import GameSprite
+from ..util.interface import GameSprite
 from ..sprite.background import NormalBG
 from ..sprite.floor import Floor
-from .. import function as function
+from ..util import function as function
 
 
 class EndWindow(GameSprite):
@@ -16,7 +16,7 @@ class EndWindow(GameSprite):
         self.setting = setting
         self.floor = Floor(setting=self.setting)
         self.background = NormalBG()
-        self.image = pygame.image.load('assets/sprites/text_game_over.png')
+        self.image = pygame.image.load('flappybird/assets/sprites/text_game_over.png')
         self.rect = self.image.get_rect()
         self.rect.x = (self.setting.SCREENWIDTH - self.image.get_width()) / 2
         self.rect.y = (self.setting.SCREENHEIGHT - self.floor.image.get_height() - self.image.get_height()) / 2
