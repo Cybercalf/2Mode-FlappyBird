@@ -1,20 +1,21 @@
-import PIL.Image
-from torch.autograd import Variable
-import torch.optim
-import torch.nn
-import torch
-import random
-import numpy as np
-import shutil
-import network.flappybird_network as network
-import flappybird.settings
-from flappybird.game_manager import GameManager as FlappyBirdGameManager
 import sys
 import os
 import time
+import random
+import shutil
+
+import numpy as np
+import PIL.Image
+from torch.autograd import Variable
+import torch
+import torch.nn
+import torch.optim
+
+import network.flappybird_network as network
 from util.logger.logger_subject import LoggerSubject
 from util.logger.logger_observer import ConsoleLoggerOberver
-sys.path.append("game/")
+import flappybird.settings
+from flappybird.game_manager import GameManager as FlappyBirdGameManager
 
 
 class ProgramManager(LoggerSubject):
@@ -400,8 +401,6 @@ class ProgramManager(LoggerSubject):
                 setting.set_mode('play')
                 game = FlappyBirdGameManager(setting=setting)
                 game.set_player_human()
-                # game.register_observer(self.console_info_logger, 'info')
-                # game.register_observer(self.console_error_logger, 'error')
                 game.start_game_by_human()
             elif player == 'computer':
                 self.play_game_with_model(
@@ -436,8 +435,6 @@ class ProgramManager(LoggerSubject):
         gamestate_setting.set_mode('play')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
-        # flappyBird_game_manager.register_observer(self.console_info_logger, 'info')
-        # flappyBird_game_manager.register_observer(self.console_error_logger, 'error')
         
         while True:
             action = model.get_optim_action()

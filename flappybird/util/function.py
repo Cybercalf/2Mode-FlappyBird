@@ -1,4 +1,3 @@
-# import pygame
 from .interface import Drawable, Updateable
 
 

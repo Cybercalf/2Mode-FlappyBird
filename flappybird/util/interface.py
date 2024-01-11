@@ -92,3 +92,7 @@ class Counter():
         重置计数为0
         '''
         self.set(0)
+
+    reset_score = reset
+    update_score = increase
+    get_score = get_number

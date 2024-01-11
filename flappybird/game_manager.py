@@ -1,17 +1,17 @@
 # TODO: 尝试把游戏判断分数增加与碰撞检测的部分进一步封装
 import pygame
-# import os
 import sys
-from flappybird.settings import Setting
-from flappybird.sprite.bird import Bird
-from flappybird.sprite.floor import Floor
-from flappybird.sprite.pipe import PipeManager
-from flappybird.sprite.background import NormalBG, BlackBG
-from flappybird.sprite.score import ScoreManager
-import flappybird.util.function
-from flappybird.sound.sound_manager import SoundManager
-from flappybird.window.end_window import EndWindow
-from flappybird.util.custom_exception import InvalidActionException, InvalidPlayerException
+
+from .settings import Setting
+from .sprite.bird import Bird
+from .sprite.floor import Floor
+from .sprite.pipe import PipeManager
+from .sprite.background import NormalBG, BlackBG
+from .sprite.score import ScoreManager
+from .sound_manager import SoundManager
+from .window.end_window import EndWindow
+from .util import function as function
+from .util.custom_exception import InvalidActionException, InvalidPlayerException
 
 
 class GameManager():
@@ -139,9 +139,8 @@ class GameManager():
 
         pygame.event.pump()
 
-        # 初始化这一帧的奖励（reward）和游戏中止的信号变量（terminal）
+        # 初始化这一帧的奖励（reward）
         reward = 0.1
-        # terminal = False
 
         """
         确定小鸟此刻的动作
@@ -177,7 +176,6 @@ class GameManager():
 
         # 若小鸟此刻拍动翅膀，且设置规定游戏播放声音，则播放拍翅膀的音效
         if self.bird.flap and self.setting.SOUND_PLAY:
-            # self.sounds['flap'].play()
             self.sounds.play('flap')
 
         """
@@ -191,7 +189,7 @@ class GameManager():
         如果有水管从左边移出屏幕，把它从列表中删除，在右侧新添一个水管
         具体实现过程写在PipeManager的update_pipe_group()方法中
         """
-        flappybird.util.function.update(self.floor, self.bird, self.pipe_manager)
+        function.update(self.floor, self.bird, self.pipe_manager)
 
         # 检查这一帧小鸟是不是越过了一对水管。如果是，游戏分数+1，reward变成1
         # 判断小鸟前一帧的左侧、水管中心线与小鸟后一帧左侧的位置关系
@@ -201,24 +199,20 @@ class GameManager():
             self.score_manager.update_score()
             reward = 1
             if self.setting.SOUND_PLAY:
-                # self.sounds['score'].play()
                 self.sounds.play('score')
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止（terminal=True），reward变成-5，重置游戏
         # 目前小鸟原则上不会飞出屏幕
         if self.bird.rect.y > self.floor.rect.y or self.bird.rect.y < 0 or pygame.sprite.spritecollideany(
                 self.bird, self.pipe_manager.pipe_group):
-            # terminal = True
             reward = -5
-
             self.terminated = True
-            # self.game_reset()
 
         """
         在画布（屏幕）上绘制各个元素，供模型训练使用
         绘制顺序：背景、所有水管、地板（静止）、小鸟
         """
-        flappybird.util.function.draw(
+        function.draw(
             self.black_bg,
             self.pipe_manager,
             self.floor.get_still_floor(),
@@ -233,7 +227,7 @@ class GameManager():
             在演示模式下重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
             绘制顺序：背景、所有水管、地板、分数、小鸟
             """
-            flappybird.util.function.redraw(
+            function.redraw(
                 self.normal_bg,
                 self.pipe_manager,
                 self.floor,
