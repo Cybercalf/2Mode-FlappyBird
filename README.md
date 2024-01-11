@@ -22,19 +22,19 @@ dependencies:
 To play game by yourself, simply go into the root of the project and type:
 
 ```shell
-python launch.py --mode play --play_mode human
+python launch.py
 ```
 
 To play game with a pretrained model, type:
 
 ```shell
-python launch.py --mode play --play_mode dqn --model < name of the model you want to play the game with >
+python launch.py --model < name of the model you want to play the game with >
 ```
 
 To train a model from scratch with GPU support, type:
 
 ```shell
-python launch.py --mode train --cuda
+python launch.py --train --cuda
 ```
 
 There are many optional parameters to help you train a model. To know all the the parameters and what they do, type:

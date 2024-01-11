@@ -2,6 +2,9 @@ import pygame
 
 
 class SoundManager:
+    '''
+    管理游戏音效
+    '''
     def __init__(self):
         self.sounds = self.load_sounds()
 
