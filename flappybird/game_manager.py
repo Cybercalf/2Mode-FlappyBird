@@ -236,8 +236,15 @@ class GameManager():
 
         pygame.display.update()
 
-        # 调整帧速率
-        self.gameclock.tick(self.setting.FPS)
+        """
+        调整游戏窗口显示的帧速率
+        理论上，因为游戏中的时间单位是一个时间步（一帧），其长度与现实世界的时间无关
+        所以训练时可以不调用pygame.time.Clock.tick()
+        不调用的效果：游戏中所有物体的移动速度会因电脑性能而发生不确定的波动（通常比调用tick()要快）
+        也许可以用来加快程序在高性能电脑上的训练速度
+        """
+        if not self.setting.UNLIMIT_SCREEN_UPDATE:
+            self.gameclock.tick(self.setting.FPS)
 
         # 把这一帧的游戏画面、reward、terminal作为参数返回
         return image_data, reward, self.terminated
