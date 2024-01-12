@@ -260,17 +260,29 @@ class ProgramManager(LoggerSubject):
                 q_value = model.forward(state_batch_var)
 
                 y = reward_batch.astype(np.float32)
+                """
+                TODO: 尝试引入Double DQN
+                原先算出max_q后直接就用在计算y（target）里了
+                引入Double DQN后，我应该先找到max_q对应的那个action，再用这个action代入原始网络算出一个q_value，参与到y的计算
+                可能要把训练一开始时导入的network(model)再复制一份出来
+                可能要对游戏做一点修改，能够根据当前这一帧的状态创建一个“平行世界”
+                要update的network算出来q值之后，取最大q值对应的那个action，让target network用这个action在平行世界玩一次，
+                拿到q值参与y的计算
+                """
                 max_q, _ = torch.max(q_value_next, dim=1)
 
+                # $y = r_t + \underset{a}{max}Q(s_{t+1}, a)$
                 for i in range(options.batch_size):
                     if not minibatch[i][4]:
                         y[i] += options.gamma * max_q.data[i].item()
 
                 y = Variable(torch.from_numpy(y))
                 action_batch_var = Variable(torch.from_numpy(action_batch))
+
                 if options.cuda:
                     y = y.cuda()
                     action_batch_var = action_batch_var.cuda()
+
                 q_value = torch.sum(
                     torch.mul(
                         action_batch_var,
@@ -435,7 +447,7 @@ class ProgramManager(LoggerSubject):
         gamestate_setting.set_mode('play')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
-        
+
         while True:
             action = model.get_optim_action()
             o, r, terminal = flappyBird_game_manager.frame_step(action)

@@ -1,3 +1,4 @@
+# TODO: 尝试给训练设置加一个导入配置文件的功能，yaml格式最好，不行就用json
 import os
 import sys
 import argparse
