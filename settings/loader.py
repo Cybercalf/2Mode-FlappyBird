@@ -72,6 +72,11 @@ class TrainingSettingLoader:
             if 0 < save_checkpoint_freq:
                 self.setting.save_checkpoint_freq = save_checkpoint_freq
 
+        update_target_qnetwork_freq = json_dict.get('update_target_qnetwork_freq', None)
+        if update_target_qnetwork_freq:
+            if 0 < update_target_qnetwork_freq:
+                self.setting.update_target_qnetwork_freq = update_target_qnetwork_freq
+
         exploration = json_dict.get('exploration', None)
         if exploration:
             if 0 < exploration:
@@ -181,6 +186,7 @@ class DefaultTrainingSetting:
         self.resume = False
         self.test_model_freq = 100
         self.save_checkpoint_freq = 2000
+        self.update_target_qnetwork_freq = 10
         self.exploration = 10000
         self.exploration_method = 'Epsilon Greedy'
         self.epsilon_greedy = self.EpsilonGreedy()

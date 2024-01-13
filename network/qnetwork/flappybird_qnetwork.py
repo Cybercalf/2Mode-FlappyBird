@@ -154,6 +154,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         :param terminal: 在这一帧游戏是否结束
         '''
         # TODO: 解释下面一句代码的具体含义，该句代码在各处被大量使用
+        # 目前推测，含义为把当前state（4帧图像）最早的一帧去除，加上从游戏得到的最新的一帧图像，作为下一个state
         next_state = np.append(
             self.current_state[1:, :, :], o_next.reshape((1,) + o_next.shape),
             axis=0

@@ -63,8 +63,8 @@ if __name__ == '__main__':
 
     program_manager = main_processes.ProgramManager()
 
-    # 如果模型路径没有被传入程序，则开始真人游玩
-    if args.model_path == '' or args.model_path is None:
+    # 如果非训练模式下，模型路径没有被传入程序，则开始真人游玩
+    if not args.train and (args.model_path == '' or args.model_path is None):
         program_manager.generate_log(message='argument --model not received, launch game at human mode',
                                      level='info',
                                      location=os.path.split(__file__)[1])

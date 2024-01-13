@@ -292,8 +292,10 @@ class ProgramManager(LoggerSubject):
                     # target_qnetwork.forward(next_state_batch_var).shape: Tensor([32, 2]), 二维数组
                     # 用二维索引的方式，把target_qnetwork算出的Q表里，每行指定索引位置的值取出来
                     # recalculated_q.shape: Tensor([32])
-                    max_q, max_q_index = torch.max(q_value_next, dim=1)
-                    recalculated_q = target_qnetwork.forward(next_state_batch_var)[torch.arange(0, 32), max_q_index]
+                    _, max_q_index = torch.max(q_value_next, dim=1)
+                    # TODO: 下面这个索引方式有无更好的方式代替
+                    recalculated_q = target_qnetwork.forward(next_state_batch_var)[
+                        torch.arange(0, training_setting.batch_size), max_q_index]
                     for i in range(training_setting.batch_size):
                         if not minibatch[i][4]:
                             y[i] += training_setting.gamma * recalculated_q.data[i].item()
@@ -339,6 +341,13 @@ class ProgramManager(LoggerSubject):
                 variable_qnetwork.epsilon -= delta
 
             """
+            每经过一定次数的episode，将target_qnetwork更新为当前的variable_qnetwork
+            TODO: 找到一个更好的更新target_qnetwork的时机
+            """
+            if episode % training_setting.update_target_qnetwork_freq == 0:
+                target_qnetwork = copy.deepcopy(variable_qnetwork)
+
+            """
             每经过一定次数的episode，测试训练后模型的效果(具体次数为training_setting.test_model_freq，默认值见程序入口)
             如果训练后的模型效果经过估计优于训练前的模型，将其保存起来，并且接下来的训练过程基于这个新的模型进行
             否则，按照training_setting.save_checkpoint_freq的值，每隔一定数量的episode保存一次模型，不管这个模型是否是当前最优的
@@ -365,8 +374,6 @@ class ProgramManager(LoggerSubject):
                     self.generate_log(message='save the best checkpoint by far, episode={}, average time step={:.2f}'.format(
                         episode, avg_time_step),
                         level='info', location=os.path.split(__file__)[1])
-                    # 将target_qnetwork更新为当前的variable_qnetwork
-                    target_qnetwork = copy.deepcopy(variable_qnetwork)
 
             # case2: 保存检查点
             if episode % training_setting.save_checkpoint_freq == 0 and not checkpoint_saved:
@@ -390,7 +397,7 @@ class ProgramManager(LoggerSubject):
                 continue
 
     def evaluate_avg_time_step(
-            self, model, current_episode, test_episode_num=5):
+            self, model, current_episode, test_episode_num=14):
         '''
         评估当前模型在数次游戏中坚持的平均时间，用于测试当前模型的游戏效果
 
@@ -400,13 +407,15 @@ class ProgramManager(LoggerSubject):
         模型在与训练相同的gamestate下游玩n次，游玩过程采取的action全部为依据自身数据选择的，而非随机选取。n次游戏结束后，返回平均游戏时间。
 
         原作者设定n=5
+        TODO: debug. 设定n=14，舍弃最好与最差的两次
 
         :param model: dqn model
         :param episode: current training episode
         :returns avg_time_step: 模型在n次游戏中坚持的平均时间
         '''
         model.set_eval()
-        avg_time_step = 0.
+        # avg_time_step = 0.
+        time_step_list = []
         gamestate_setting = flappybird.settings.Setting()
         gamestate_setting.set_mode(mode='train')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
@@ -425,8 +434,9 @@ class ProgramManager(LoggerSubject):
                 model.current_state = np.append(
                     model.current_state[1:, :, :], o.reshape((1,) + o.shape), axis=0)
                 model.increase_time_step()
-            avg_time_step += model.time_step
-        avg_time_step /= test_episode_num
+            time_step_list.append(model.time_step)
+        time_step_list = sorted(time_step_list)[2:-2]
+        avg_time_step = sum(time_step_list) / len(time_step_list)
 
         self.generate_log(message='testing: episode: {}, average time step: {}'.format(
             current_episode, avg_time_step),
