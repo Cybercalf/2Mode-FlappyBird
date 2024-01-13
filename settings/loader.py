@@ -90,6 +90,11 @@ class TrainingSettingLoader:
                     self.setting.epsilon_greedy.init_e = init_e
                     self.setting.epsilon_greedy.final_e = final_e
 
+        # TODO: 后续可能要修改advanced_method的结构，使多种进阶技术可以被使用，目前一次最多只能使用一种
+        advanced_method = json_dict.get('advanced_method', None)
+        if advanced_method in ['None', 'Double DQN', 'Dueling DQN', 'Prioritized Reply', 'Multi-step', 'Noisy Net']:
+            self.setting.advanced_method = advanced_method
+
     def validate_setting_from_args(self, args):
         '''
         验证从运行参数导入的设置内容的有效性，如果有效，用它覆盖原来的设置内容
@@ -179,6 +184,7 @@ class DefaultTrainingSetting:
         self.exploration = 10000
         self.exploration_method = 'Epsilon Greedy'
         self.epsilon_greedy = self.EpsilonGreedy()
+        self.advanced_method = 'None'
 
 
 class JsonLoader:

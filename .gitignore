@@ -164,11 +164,13 @@ backup/
 assets/raw/
 original/
 model/
+weight/
 *.tar
 temp*
 *.sh
 study_notes/
 **/.vscode
 study_notes/
-test/
+test*
 *.json
+*.log

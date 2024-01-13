@@ -21,15 +21,18 @@ class FileLoggerObserver(LoggerObserver):
     def __init__(self, output_file_path):
         super().__init__()
         self.output_file_path = output_file_path
+        self.file = open(self.output_file_path, 'a+')
 
     def update(self, message, level, location):
         '''
         更新自身（即输出日志）
         '''
         super().update()
-        with open(self.output_file_path, "a") as f:
-            f.write("[{}][{}][{}] {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-                                             level, location, message))
+        # with open(self.output_file_path, "a") as f:
+        #     f.write("[{}][{}][{}] {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+        #                                        level, location, message))
+        self.file.write("[{}][{}][{}] {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                                                   level, location, message))
 
 
 class ConsoleLoggerOberver(LoggerObserver):
