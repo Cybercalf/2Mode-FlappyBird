@@ -1,9 +1,9 @@
-# TODO: 尝试给训练设置加一个导入配置文件的功能，yaml格式最好，不行就用json
 import os
 import sys
 import argparse
 import torch.cuda
 import main_processes
+from settings.loader import TrainingSettingLoader
 
 parser = argparse.ArgumentParser(description='2Mode-FlappyBird')
 
@@ -21,6 +21,8 @@ parser.add_argument('--cuda', action='store_true', default=False,
 train_argument_group = parser.add_argument_group(
     'Argument for training model (available when you set argument --train)')
 
+train_argument_group.add_argument('--json', type=str,
+                                  help='json path to load training setting', default='')
 train_argument_group.add_argument('--lr', type=float,
                                   help='learning rate', default=0.0001)
 train_argument_group.add_argument('--gamma', type=float,
@@ -82,6 +84,11 @@ if __name__ == '__main__':
                                          level='info',
                                          location=os.path.split(__file__)[1])
         if args.train:
-            program_manager.train_model(args)
+            """
+            从json文件和运行参数中导入设置
+            """
+            training_setting = TrainingSettingLoader(args, args.json).get_setting()
+            # 进入训练过程
+            program_manager.train_model(options=args, training_setting=training_setting)
         else:
             program_manager.play_game(player='computer', args=args)

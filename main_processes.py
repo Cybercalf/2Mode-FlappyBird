@@ -11,7 +11,7 @@ import torch
 import torch.nn
 import torch.optim
 
-import network.flappybird_network as network
+import network.qnetwork.flappybird_qnetwork as network
 from util.logger.logger_subject import LoggerSubject
 from util.logger.logger_observer import ConsoleLoggerOberver
 import flappybird.settings
@@ -137,12 +137,13 @@ class ProgramManager(LoggerSubject):
 
         return episode, epsilon, time_step
 
-    def train_model(self, options):
+    def train_model(self, options, training_setting):
         '''
         训练模型的核心过程
 
         :param model: DQN model
-        :param options: 训练使用的各项参数
+        :param options: 通用设置，如模型路径、cuda支持等
+        :param training_setting: 训练过程中使用的各项参数
         :param resume: resume previous model
 
         :param lr: learning rate
@@ -161,13 +162,13 @@ class ProgramManager(LoggerSubject):
         best_time_step = 0.
 
         # 初始化模型（网络）
-        model = network.FlappyBirdNetwork(epsilon=options.init_e,
-                                          mem_size=options.memory_size, cuda=options.cuda)
+        model = network.FlappyBirdQNetwork(epsilon=training_setting.epsilon_greedy.init_e,
+                                           mem_size=training_setting.memory_size, cuda=options.cuda)
 
         """
         检查训练过程是否基于一个给定的模型开始
         """
-        if options.resume:
+        if training_setting.resume:
             # 2024.01.04
             # 目前程序未传入--model参数时，当做人类游玩游戏处理，所以下面这个异常理论上不会被触发
             if options.model_path is None:
@@ -192,7 +193,7 @@ class ProgramManager(LoggerSubject):
         gamestate_setting.set_mode(mode='train')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
-        optimizer = torch.optim.RMSprop(model.parameters(), lr=options.lr)
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=training_setting.lr)
         ceriterion = torch.nn.MSELoss()
 
         action = [1, 0]
@@ -205,9 +206,9 @@ class ProgramManager(LoggerSubject):
 
         """
         训练开始前，随机选取action操作小鸟，并将数据保存起来
-        随机操作的次数取决于options.observation
+        随机操作的次数取决于training_setting.observation
         """
-        for i in range(options.observation):
+        for i in range(training_setting.observation):
             action = model.get_action_randomly()
             o, r, terminal = flappyBird_game_manager.frame_step(action)
             o = self.preprocess(o)
@@ -215,7 +216,7 @@ class ProgramManager(LoggerSubject):
 
         # start training
         # 注意episode从0开始编号，所以训练次数可以在max_episode的基础上+1，否则最后的一部分训练结果没有机会保存下来
-        for episode in range(options.max_episode + 1):
+        for episode in range(training_setting.max_episode + 1):
             model.time_step = 0
             model.set_train()
             total_reward = 0.
@@ -227,7 +228,7 @@ class ProgramManager(LoggerSubject):
                 # 模型依据自身经验决定这一帧采取的action，传入gamestate，获得这一帧的观测图像、奖励值、游戏是否中止
                 action = model.get_action()
                 o_next, r, terminal = flappyBird_game_manager.frame_step(action)
-                total_reward += options.gamma**model.time_step * r
+                total_reward += training_setting.gamma**model.time_step * r
 
                 # 对这一帧图像做预处理
                 o_next = self.preprocess(o_next)
@@ -238,7 +239,7 @@ class ProgramManager(LoggerSubject):
 
                 # Step 1: obtain random minibatch from replay memory
                 minibatch = random.sample(
-                    model.replay_memory, options.batch_size)
+                    model.replay_memory, training_setting.batch_size)
                 state_batch = np.array([data[0] for data in minibatch])
                 action_batch = np.array([data[1] for data in minibatch])
                 reward_batch = np.array([data[2] for data in minibatch])
@@ -272,9 +273,9 @@ class ProgramManager(LoggerSubject):
                 max_q, _ = torch.max(q_value_next, dim=1)
 
                 # $y = r_t + \underset{a}{max}Q(s_{t+1}, a)$
-                for i in range(options.batch_size):
+                for i in range(training_setting.batch_size):
                     if not minibatch[i][4]:
-                        y[i] += options.gamma * max_q.data[i].item()
+                        y[i] += training_setting.gamma * max_q.data[i].item()
 
                 y = Variable(torch.from_numpy(y))
                 action_batch_var = Variable(torch.from_numpy(action_batch))
@@ -304,22 +305,22 @@ class ProgramManager(LoggerSubject):
                 level='info', location=os.path.split(__file__)[1])
 
             # 经过一次episode后，降低epsilon的值
-            if model.epsilon > options.final_e:
-                delta = (options.init_e - options.final_e) / \
-                    options.exploration
+            if model.epsilon > training_setting.epsilon_greedy.final_e:
+                delta = (training_setting.epsilon_greedy.init_e - training_setting.epsilon_greedy.final_e) / \
+                    training_setting.exploration
                 model.epsilon -= delta
 
             """
-            每经过一定次数的episode，测试训练后模型的效果(具体次数为options.test_model_freq，默认值见程序入口)
+            每经过一定次数的episode，测试训练后模型的效果(具体次数为training_setting.test_model_freq，默认值见程序入口)
             如果训练后的模型效果经过估计优于训练前的模型，将其保存起来，并且接下来的训练过程基于这个新的模型进行
-            否则，按照options.save_checkpoint_freq的值，每隔一定数量的episode保存一次模型，不管这个模型是否是当前最优的
+            否则，按照training_setting.save_checkpoint_freq的值，每隔一定数量的episode保存一次模型，不管这个模型是否是当前最优的
             """
             # 用于查看当前episode是否保存了检查点的标志变量
             checkpoint_saved = False
             # 用于检查当前episode的模型是否被评估的标志变量
             model_evaluated = False
             # case1: 测试模型
-            if episode % options.test_model_freq == 0:
+            if episode % training_setting.test_model_freq == 0:
                 if not model_evaluated:
                     avg_time_step = self.evaluate_avg_time_step(model, episode)
                     model_evaluated = True
@@ -338,7 +339,7 @@ class ProgramManager(LoggerSubject):
                         level='info', location=os.path.split(__file__)[1])
 
             # case2: 保存检查点
-            if episode % options.save_checkpoint_freq == 0 and not checkpoint_saved:
+            if episode % training_setting.save_checkpoint_freq == 0 and not checkpoint_saved:
                 if not model_evaluated:
                     avg_time_step = self.evaluate_avg_time_step(model, episode)
                     model_evaluated = True
@@ -409,9 +410,9 @@ class ProgramManager(LoggerSubject):
         '''
         try:
             if player == 'human':
-                setting = flappybird.settings.Setting()
-                setting.set_mode('play')
-                game = FlappyBirdGameManager(setting=setting)
+                gamestate_setting = flappybird.settings.Setting()
+                gamestate_setting.set_mode('play')
+                game = FlappyBirdGameManager(setting=gamestate_setting)
                 game.set_player_human()
                 game.start_game_by_human()
             elif player == 'computer':
@@ -435,7 +436,7 @@ class ProgramManager(LoggerSubject):
         self.generate_log(
             message='load pretrained model file: ' + model_file_path,
             level='info', location=os.path.split(__file__)[1])
-        model = network.FlappyBirdNetwork(epsilon=0., mem_size=0, cuda=cuda)
+        model = network.FlappyBirdQNetwork(epsilon=0., mem_size=0, cuda=cuda)
         self.load_checkpoint(model_file_path, model)
         model.set_initial_state()
         if cuda:
