@@ -217,7 +217,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         action[action_index] = 1
         return action
 
-    def get_action(self, exploration='e'):
+    def get_action(self, setting):
         '''
         根据当前状态（state）选择动作（action）
         :param: exploration: 探索方式，e=epsilon-greedy，b=Boltzmann Exploration
@@ -230,24 +230,39 @@ class FlappyBirdQNetwork(torch.nn.Module):
 
         如果不是训练过程，agent一定会选择（它自己认为的）最佳动作
 
-        TODO: 从一开始就采用Boltzmann Exploration，训练的收敛速度很慢很慢，需要检查究竟是自己写错了，还是这种探索策略本身的问题
+        注意：如果exploration策略从一开始就采用Boltzmann Exploration，训练的收敛速度会很慢很慢
+        推测原因为，由于游戏奖励值设的比较小，导致从qnetwork中得出的两个action值对应的Q值相差不大，套上exp之后差距就更小了
+        这导致每次小鸟用Boltzmann Exploration选择action时，选取两个动作的概率很接近
+        Boltzmann Exploration还有一个控制选择动作概率的参数，
+        参数过小，选择action更加贪心，前期训练可能收敛更快，但后期网络几乎不会再作探索
+        参数过大，选择action更随机，前期训练收敛速度很慢
+
+        TODO: Boltzmann Exploration引入了大量的浮点数运算，尝试加速
+
         TODO: 优化三种选择action的方法的逻辑，去掉重复代码
         """
-        if exploration == 'e':
+        if setting.exploration_method == 'Epsilon Greedy':
             if self.train and random.random() <= self.epsilon:
                 action = self.get_action_randomly()
             else:
                 action = self.get_optim_action()
-        elif exploration == 'b':
+        elif setting.exploration_method == 'Boltzmann Exploration':
             state = self.current_state
             with torch.no_grad():
                 state_var = Variable(torch.from_numpy(state)).unsqueeze(0)
             if self.use_cuda:
                 state_var = state_var.cuda()
             q_value = self.forward(state_var)
-            q_value_exp = torch.exp(q_value)
+            q_value_after_control_by_tau = q_value / setting.boltzmann_exploration.tau
+            q_value_after_control_by_tau_exp = torch.exp(q_value_after_control_by_tau)
+            probability = (q_value_after_control_by_tau_exp / torch.sum(q_value_after_control_by_tau_exp))[0][0].item()
             action = np.zeros(self.actions, dtype=np.float32)
-            action[0 if random.random() < (q_value_exp / torch.sum(q_value_exp))[0][0].item() else 1] = 1
+            action[0 if random.random() < probability else 1] = 1
+            # TODO: debug
+            # print("q_value: {}".format(q_value))
+            # print("q_value_after_control_by_tau: {}".format(q_value_after_control_by_tau))
+            # print("q_value_after_control_by_tau_exp: {}".format(q_value_after_control_by_tau_exp))
+            # print("probability: {}".format(probability))
         else:
             raise ValueError('invalid exploration method when getting action')
 

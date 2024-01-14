@@ -95,9 +95,17 @@ class TrainingSettingLoader:
                     self.setting.epsilon_greedy.init_e = init_e
                     self.setting.epsilon_greedy.final_e = final_e
 
+        boltzmann_exploration = json_dict.get('boltzmann_exploration', None)
+        if isinstance(boltzmann_exploration, dict):
+            tau = boltzmann_exploration.get('tau', None)
+            if tau:
+                if tau > 0:
+                    self.setting.boltzmann_exploration.tau = tau
+
         # TODO: 后续可能要修改advanced_method的结构，使多种进阶技术可以被使用，目前一次最多只能使用一种
+        # TODO: 尝试引入Prioritized Reply
         advanced_method = json_dict.get('advanced_method', None)
-        if advanced_method in ['None', 'Double DQN', 'Dueling DQN', 'Prioritized Reply', 'Multi-step', 'Noisy Net']:
+        if advanced_method in ['None', 'Double DQN', 'Dueling DQN', 'Prioritized Replay', 'Multi-step', 'Noisy Net']:
             self.setting.advanced_method = advanced_method
 
     def validate_setting_from_args(self, args):
@@ -176,6 +184,10 @@ class DefaultTrainingSetting:
             self.init_e = 1.0
             self.final_e = 0.1
 
+    class BoltzmannExploration:
+        def __init__(self):
+            self.tau = 1.0
+
     def __init__(self):
         self.lr = 0.0001
         self.gamma = 0.99
@@ -190,6 +202,7 @@ class DefaultTrainingSetting:
         self.exploration = 10000
         self.exploration_method = 'Epsilon Greedy'
         self.epsilon_greedy = self.EpsilonGreedy()
+        self.boltzmann_exploration = self.BoltzmannExploration()
         self.advanced_method = 'None'
 
 
@@ -204,6 +217,7 @@ class JsonLoader:
                 self.content = json.load(f)
         except Exception:
             self.content = None
+            raise FileNotFoundError('json not found')
 
     def get_content(self):
         return self.content

@@ -30,6 +30,7 @@ train_argument_group.add_argument('--gamma', type=float,
                                   help='discount rate', default=0.99)
 train_argument_group.add_argument('--batch_size', type=int,
                                   help='batch size', default=32)
+# TODO: 尝试更改memory_size（比如适当减小），看训练效果
 train_argument_group.add_argument('--memory_size', type=int,
                                   help='memory size for experience replay', default=5000)
 train_argument_group.add_argument('--init_e', type=float,

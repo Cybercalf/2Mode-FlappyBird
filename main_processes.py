@@ -244,11 +244,7 @@ class ProgramManager(LoggerSubject):
 
                 # 模型依据自身经验决定这一帧采取的action，传入gamestate，获得这一帧的观测图像、奖励值、游戏是否中止
                 # 决定action的方法受到exploration方式的影响，目前支持Epsilon Greedy和Boltzmann Exploration
-                if training_setting.exploration_method == 'Epsilon Greedy':
-                    exploration_mode = 'e'
-                elif training_setting.exploration_method == 'Boltzmann Exploration':
-                    exploration_mode = 'b'
-                action = variable_qnetwork.get_action(exploration=exploration_mode if exploration_mode else 'e')
+                action = variable_qnetwork.get_action(setting=training_setting)
                 o_next, r, terminal = flappyBird_game_manager.frame_step(action)
                 total_reward += training_setting.gamma**variable_qnetwork.time_step * r
 
@@ -402,7 +398,7 @@ class ProgramManager(LoggerSubject):
                 continue
 
     def evaluate_avg_time_step(
-            self, model, current_episode, test_episode_num=14):
+            self, model, current_episode, test_episode_num=20):
         '''
         评估当前模型在数次游戏中坚持的平均时间，用于测试当前模型的游戏效果
 
@@ -412,7 +408,7 @@ class ProgramManager(LoggerSubject):
         模型在与训练相同的gamestate下游玩n次，游玩过程采取的action全部为依据自身数据选择的，而非随机选取。n次游戏结束后，返回平均游戏时间。
 
         原作者设定n=5
-        TODO: debug. 设定n=14，舍弃最好与最差的两次
+        TODO: debug. 设定n=20，舍弃最好与最差的5次
 
         :param model: dqn model
         :param episode: current training episode
@@ -440,7 +436,7 @@ class ProgramManager(LoggerSubject):
                     model.current_state[1:, :, :], o.reshape((1,) + o.shape), axis=0)
                 model.increase_time_step()
             time_step_list.append(model.time_step)
-        time_step_list = sorted(time_step_list)[2:-2]
+        time_step_list = sorted(time_step_list)[5:-5]
         avg_time_step = sum(time_step_list) / len(time_step_list)
 
         self.generate_log(message='testing: episode: {}, average time step: {}'.format(
