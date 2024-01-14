@@ -160,17 +160,17 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+**/.vscode
 backup/
 assets/raw/
 original/
 model/
 weight/
-*.tar
+study_notes/
+*json*
+*yaml*
 temp*
-*.sh
-study_notes/
-**/.vscode
-study_notes/
 test*
-*.json
-*.log
+log*
+*.tar
+*.sh
