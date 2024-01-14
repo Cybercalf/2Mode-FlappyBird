@@ -3,6 +3,7 @@ import os
 import time
 import random
 import shutil
+import copy
 
 import numpy as np
 import PIL.Image
@@ -11,9 +12,9 @@ import torch
 import torch.nn
 import torch.optim
 
-import network.flappybird_network as network
+from network.qnetwork.flappybird_qnetwork import FlappyBirdQNetwork as QNetwork
 from util.logger.logger_subject import LoggerSubject
-from util.logger.logger_observer import ConsoleLoggerOberver
+from util.logger.logger_observer import ConsoleLoggerOberver, FileLoggerObserver
 import flappybird.settings
 from flappybird.game_manager import GameManager as FlappyBirdGameManager
 
@@ -32,6 +33,11 @@ class ProgramManager(LoggerSubject):
         self.console_error_logger = ConsoleLoggerOberver()
         self.register_observer(self.console_info_logger, 'info')
         self.register_observer(self.console_error_logger, 'error')
+
+        self.file_info_logger = FileLoggerObserver('{}.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
+        self.file_error_logger = FileLoggerObserver('{}.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
+        self.register_observer(self.file_info_logger, 'info')
+        self.register_observer(self.file_error_logger, 'error')
 
     def preprocess(self, frame, image_size_after_resize=(72, 128)):
         '''
@@ -137,12 +143,14 @@ class ProgramManager(LoggerSubject):
 
         return episode, epsilon, time_step
 
-    def train_model(self, options):
+    def train_model(self, options, training_setting):
         '''
         训练模型的核心过程
 
+        :param options: 通用设置，如模型路径、cuda支持等
+        :param training_setting: 训练过程中使用的各项参数
+
         :param model: DQN model
-        :param options: 训练使用的各项参数
         :param resume: resume previous model
 
         :param lr: learning rate
@@ -160,14 +168,17 @@ class ProgramManager(LoggerSubject):
         # 记录模型的最好游玩效果，用time_step量化
         best_time_step = 0.
 
-        # 初始化模型（网络）
-        model = network.FlappyBirdNetwork(epsilon=options.init_e,
-                                          mem_size=options.memory_size, cuda=options.cuda)
+        """
+        初始化QNetwork
+        1.一个在训练过程中经常变化权重的QNetwork，用于训练
+        """
+        variable_qnetwork = QNetwork(epsilon=training_setting.epsilon_greedy.init_e,
+                                     mem_size=training_setting.memory_size, cuda=options.cuda)
 
         """
         检查训练过程是否基于一个给定的模型开始
         """
-        if options.resume:
+        if training_setting.resume:
             # 2024.01.04
             # 目前程序未传入--model参数时，当做人类游玩游戏处理，所以下面这个异常理论上不会被触发
             if options.model_path is None:
@@ -177,7 +188,7 @@ class ProgramManager(LoggerSubject):
             self.generate_log(message='load previous model weight: {}'.format(options.model_path),
                               level='info', location=os.path.split(__file__)[1])
             _, _, best_time_step = self.load_checkpoint(
-                options.model_path, model)
+                options.model_path, variable_qnetwork)
 
         """
         初始化各参数
@@ -192,32 +203,39 @@ class ProgramManager(LoggerSubject):
         gamestate_setting.set_mode(mode='train')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
-        optimizer = torch.optim.RMSprop(model.parameters(), lr=options.lr)
+
+        optimizer = torch.optim.RMSprop(variable_qnetwork.parameters(), lr=training_setting.lr)
         ceriterion = torch.nn.MSELoss()
 
         action = [1, 0]
         o, r, terminal = flappyBird_game_manager.frame_step(action)
         o = self.preprocess(o)
-        model.set_initial_state()
+        variable_qnetwork.set_initial_state()
 
         if options.cuda:
-            model = model.cuda()
+            variable_qnetwork = variable_qnetwork.cuda()
 
         """
         训练开始前，随机选取action操作小鸟，并将数据保存起来
-        随机操作的次数取决于options.observation
+        随机操作的次数取决于training_setting.observation
         """
-        for i in range(options.observation):
-            action = model.get_action_randomly()
+        for i in range(training_setting.observation):
+            action = variable_qnetwork.get_action_randomly()
             o, r, terminal = flappyBird_game_manager.frame_step(action)
             o = self.preprocess(o)
-            model.store_transition(o, action, r, terminal)
+            variable_qnetwork.store_transition(o, action, r, terminal)
 
         # start training
+        """
+        初始化QNetwork
+        2.一个仅在某些规定时刻更改的QNetwork，用于计算前一个QNetwork产生Q值的目标
+        """
+        target_qnetwork = copy.deepcopy(variable_qnetwork)
+
         # 注意episode从0开始编号，所以训练次数可以在max_episode的基础上+1，否则最后的一部分训练结果没有机会保存下来
-        for episode in range(options.max_episode + 1):
-            model.time_step = 0
-            model.set_train()
+        for episode in range(training_setting.max_episode + 1):
+            variable_qnetwork.time_step = 0
+            variable_qnetwork.set_train()
             total_reward = 0.
 
             # ------beginning of an episode------
@@ -225,20 +243,20 @@ class ProgramManager(LoggerSubject):
                 optimizer.zero_grad()
 
                 # 模型依据自身经验决定这一帧采取的action，传入gamestate，获得这一帧的观测图像、奖励值、游戏是否中止
-                action = model.get_action()
+                action = variable_qnetwork.get_action()
                 o_next, r, terminal = flappyBird_game_manager.frame_step(action)
-                total_reward += options.gamma**model.time_step * r
+                total_reward += training_setting.gamma**variable_qnetwork.time_step * r
 
                 # 对这一帧图像做预处理
                 o_next = self.preprocess(o_next)
 
                 # 保存数据，模型的time_step计数器+1
-                model.store_transition(o_next, action, r, terminal)
-                model.increase_time_step()
+                variable_qnetwork.store_transition(o_next, action, r, terminal)
+                variable_qnetwork.increase_time_step()
 
                 # Step 1: obtain random minibatch from replay memory
                 minibatch = random.sample(
-                    model.replay_memory, options.batch_size)
+                    variable_qnetwork.replay_memory, training_setting.batch_size)
                 state_batch = np.array([data[0] for data in minibatch])
                 action_batch = np.array([data[1] for data in minibatch])
                 reward_batch = np.array([data[2] for data in minibatch])
@@ -255,22 +273,47 @@ class ProgramManager(LoggerSubject):
                 Step 2: calculate y
                 TODO: 看懂y值的计算步骤
                 """
-                q_value_next = model.forward(next_state_batch_var)
+                q_value_next = variable_qnetwork.forward(next_state_batch_var)
 
-                q_value = model.forward(state_batch_var)
+                q_value = variable_qnetwork.forward(state_batch_var)
 
                 y = reward_batch.astype(np.float32)
-                max_q, _ = torch.max(q_value_next, dim=1)
 
-                for i in range(options.batch_size):
-                    if not minibatch[i][4]:
-                        y[i] += options.gamma * max_q.data[i].item()
+                r"""
+                计算variable_qnetwork的Q值$Q(s_i, a_i)$与目标y值，更新网络权重使Q接近y（回归问题）
+                原始方法：
+                $y = r_t + \underset{a}{max}\hat{Q}(s_{t+1}, a)$
+                进阶方法(Double DQN)：
+                $y = r_t + Q'(s_{t+1}, arg\underset{a}{max}Q(s_{t+1}, a))$
+                """
+                if training_setting.advanced_method == 'Double DQN':
+                    # max_q.shape: Tensor([32])
+                    # max_q_index.shape: Tensor([32]), max_q_index每个位置的值只会是0或1
+                    # target_qnetwork.forward(next_state_batch_var).shape: Tensor([32, 2]), 二维数组
+                    # 用二维索引的方式，把target_qnetwork算出的Q表里，每行指定索引位置的值取出来
+                    # recalculated_q.shape: Tensor([32])
+                    _, max_q_index = torch.max(q_value_next, dim=1)
+                    # TODO: 下面这个索引方式有无更好的方式代替
+                    recalculated_q = target_qnetwork.forward(next_state_batch_var)[
+                        torch.arange(0, training_setting.batch_size), max_q_index]
+                    for i in range(training_setting.batch_size):
+                        if not minibatch[i][4]:
+                            y[i] += training_setting.gamma * recalculated_q.data[i].item()
+                else:
+                    max_q, _ = torch.max(q_value_next, dim=1)
+
+                    for i in range(training_setting.batch_size):
+                        if not minibatch[i][4]:
+                            y[i] += training_setting.gamma * max_q.data[i].item()
 
                 y = Variable(torch.from_numpy(y))
+
                 action_batch_var = Variable(torch.from_numpy(action_batch))
+
                 if options.cuda:
                     y = y.cuda()
                     action_batch_var = action_batch_var.cuda()
+
                 q_value = torch.sum(
                     torch.mul(
                         action_batch_var,
@@ -288,35 +331,42 @@ class ProgramManager(LoggerSubject):
             # ------end of an episode------
 
             self.generate_log(message='episode: {}, epsilon: {:.4f}, max time step: {}, total reward: {:.6f}'.format(
-                episode, model.epsilon, model.time_step, total_reward),
+                episode, variable_qnetwork.epsilon, variable_qnetwork.time_step, total_reward),
                 level='info', location=os.path.split(__file__)[1])
 
             # 经过一次episode后，降低epsilon的值
-            if model.epsilon > options.final_e:
-                delta = (options.init_e - options.final_e) / \
-                    options.exploration
-                model.epsilon -= delta
+            if variable_qnetwork.epsilon > training_setting.epsilon_greedy.final_e:
+                delta = (training_setting.epsilon_greedy.init_e - training_setting.epsilon_greedy.final_e) / \
+                    training_setting.exploration
+                variable_qnetwork.epsilon -= delta
 
             """
-            每经过一定次数的episode，测试训练后模型的效果(具体次数为options.test_model_freq，默认值见程序入口)
+            每经过一定次数的episode，将target_qnetwork更新为当前的variable_qnetwork
+            TODO: 找到一个更好的更新target_qnetwork的时机
+            """
+            if episode % training_setting.update_target_qnetwork_freq == 0:
+                target_qnetwork = copy.deepcopy(variable_qnetwork)
+
+            """
+            每经过一定次数的episode，测试训练后模型的效果(具体次数为training_setting.test_model_freq，默认值见程序入口)
             如果训练后的模型效果经过估计优于训练前的模型，将其保存起来，并且接下来的训练过程基于这个新的模型进行
-            否则，按照options.save_checkpoint_freq的值，每隔一定数量的episode保存一次模型，不管这个模型是否是当前最优的
+            否则，按照training_setting.save_checkpoint_freq的值，每隔一定数量的episode保存一次模型，不管这个模型是否是当前最优的
             """
             # 用于查看当前episode是否保存了检查点的标志变量
             checkpoint_saved = False
             # 用于检查当前episode的模型是否被评估的标志变量
             model_evaluated = False
             # case1: 测试模型
-            if episode % options.test_model_freq == 0:
+            if episode % training_setting.test_model_freq == 0:
                 if not model_evaluated:
-                    avg_time_step = self.evaluate_avg_time_step(model, episode)
+                    avg_time_step = self.evaluate_avg_time_step(variable_qnetwork, episode)
                     model_evaluated = True
                 if avg_time_step > best_time_step:
                     best_time_step = avg_time_step
                     self.save_checkpoint({
                         'episode': episode,
-                        'epsilon': model.epsilon,
-                        'state_dict': model.state_dict(),
+                        'epsilon': variable_qnetwork.epsilon,
+                        'state_dict': variable_qnetwork.state_dict(),
                         'is_best_model_by_far': True,
                         'time_step': best_time_step,
                     }, is_best=True, filepath=checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode)
@@ -326,14 +376,14 @@ class ProgramManager(LoggerSubject):
                         level='info', location=os.path.split(__file__)[1])
 
             # case2: 保存检查点
-            if episode % options.save_checkpoint_freq == 0 and not checkpoint_saved:
+            if episode % training_setting.save_checkpoint_freq == 0 and not checkpoint_saved:
                 if not model_evaluated:
-                    avg_time_step = self.evaluate_avg_time_step(model, episode)
+                    avg_time_step = self.evaluate_avg_time_step(variable_qnetwork, episode)
                     model_evaluated = True
                 self.save_checkpoint({
                     'episode': episode,
-                    'epsilon': model.epsilon,
-                    'state_dict': model.state_dict(),
+                    'epsilon': variable_qnetwork.epsilon,
+                    'state_dict': variable_qnetwork.state_dict(),
                     'is_best_model_by_far': False,
                     'time_step': avg_time_step,
                 }, is_best=False, filepath=checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode)
@@ -347,7 +397,7 @@ class ProgramManager(LoggerSubject):
                 continue
 
     def evaluate_avg_time_step(
-            self, model, current_episode, test_episode_num=5):
+            self, model, current_episode, test_episode_num=14):
         '''
         评估当前模型在数次游戏中坚持的平均时间，用于测试当前模型的游戏效果
 
@@ -357,13 +407,15 @@ class ProgramManager(LoggerSubject):
         模型在与训练相同的gamestate下游玩n次，游玩过程采取的action全部为依据自身数据选择的，而非随机选取。n次游戏结束后，返回平均游戏时间。
 
         原作者设定n=5
+        TODO: debug. 设定n=14，舍弃最好与最差的两次
 
         :param model: dqn model
         :param episode: current training episode
         :returns avg_time_step: 模型在n次游戏中坚持的平均时间
         '''
         model.set_eval()
-        avg_time_step = 0.
+        # avg_time_step = 0.
+        time_step_list = []
         gamestate_setting = flappybird.settings.Setting()
         gamestate_setting.set_mode(mode='train')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
@@ -382,8 +434,9 @@ class ProgramManager(LoggerSubject):
                 model.current_state = np.append(
                     model.current_state[1:, :, :], o.reshape((1,) + o.shape), axis=0)
                 model.increase_time_step()
-            avg_time_step += model.time_step
-        avg_time_step /= test_episode_num
+            time_step_list.append(model.time_step)
+        time_step_list = sorted(time_step_list)[2:-2]
+        avg_time_step = sum(time_step_list) / len(time_step_list)
 
         self.generate_log(message='testing: episode: {}, average time step: {}'.format(
             current_episode, avg_time_step),
@@ -397,9 +450,9 @@ class ProgramManager(LoggerSubject):
         '''
         try:
             if player == 'human':
-                setting = flappybird.settings.Setting()
-                setting.set_mode('play')
-                game = FlappyBirdGameManager(setting=setting)
+                gamestate_setting = flappybird.settings.Setting()
+                gamestate_setting.set_mode('play')
+                game = FlappyBirdGameManager(setting=gamestate_setting)
                 game.set_player_human()
                 game.start_game_by_human()
             elif player == 'computer':
@@ -423,7 +476,7 @@ class ProgramManager(LoggerSubject):
         self.generate_log(
             message='load pretrained model file: ' + model_file_path,
             level='info', location=os.path.split(__file__)[1])
-        model = network.FlappyBirdNetwork(epsilon=0., mem_size=0, cuda=cuda)
+        model = QNetwork(epsilon=0., mem_size=0, cuda=cuda)
         self.load_checkpoint(model_file_path, model)
         model.set_initial_state()
         if cuda:
@@ -435,7 +488,7 @@ class ProgramManager(LoggerSubject):
         gamestate_setting.set_mode('play')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
-        
+
         while True:
             action = model.get_optim_action()
             o, r, terminal = flappyBird_game_manager.frame_step(action)

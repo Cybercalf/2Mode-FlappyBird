@@ -41,7 +41,8 @@ class GameManager():
         self.gameclock = pygame.time.Clock()
 
         # 加载游戏音效文件
-        self.sounds = SoundManager()
+        if self.setting.SOUND_PLAY:
+            self.sounds = SoundManager()
 
         # 游戏窗口
         self.end_window = EndWindow(self.setting)

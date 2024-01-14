@@ -3,6 +3,8 @@ import sys
 import argparse
 import torch.cuda
 import main_processes
+from settings.loader import TrainingSettingLoader
+# import cProfile
 
 parser = argparse.ArgumentParser(description='2Mode-FlappyBird')
 
@@ -20,6 +22,8 @@ parser.add_argument('--cuda', action='store_true', default=False,
 train_argument_group = parser.add_argument_group(
     'Argument for training model (available when you set argument --train)')
 
+train_argument_group.add_argument('--json', type=str,
+                                  help='json path to load training setting', default='')
 train_argument_group.add_argument('--lr', type=float,
                                   help='learning rate', default=0.0001)
 train_argument_group.add_argument('--gamma', type=float,
@@ -59,8 +63,8 @@ if __name__ == '__main__':
 
     program_manager = main_processes.ProgramManager()
 
-    # 如果模型路径没有被传入程序，则开始真人游玩
-    if args.model_path == '' or args.model_path is None:
+    # 如果非训练模式下，模型路径没有被传入程序，则开始真人游玩
+    if not args.train and (args.model_path == '' or args.model_path is None):
         program_manager.generate_log(message='argument --model not received, launch game at human mode',
                                      level='info',
                                      location=os.path.split(__file__)[1])
@@ -81,6 +85,12 @@ if __name__ == '__main__':
                                          level='info',
                                          location=os.path.split(__file__)[1])
         if args.train:
-            program_manager.train_model(args)
+            """
+            从json文件和运行参数中导入设置
+            """
+            training_setting = TrainingSettingLoader(args, args.json).get_setting()
+            # 进入训练过程
+            program_manager.train_model(options=args, training_setting=training_setting)
+            # cProfile.run("program_manager.train_model(options=args, training_setting=training_setting)", 'restats')
         else:
             program_manager.play_game(player='computer', args=args)

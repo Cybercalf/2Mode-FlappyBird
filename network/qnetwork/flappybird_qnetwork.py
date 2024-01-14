@@ -6,7 +6,7 @@ import torch.nn
 from torch.autograd import Variable
 
 
-class FlappyBirdNetwork(torch.nn.Module):
+class FlappyBirdQNetwork(torch.nn.Module):
     '''
     依据xmfbit大神设计的DQN改造
     '''
@@ -34,7 +34,7 @@ class FlappyBirdNetwork(torch.nn.Module):
         :param mem_size: 经验回放（experience replay）用到的内存大小
         :param cuda: 是否使用cuda
         '''
-        super(FlappyBirdNetwork, self).__init__()
+        super(FlappyBirdQNetwork, self).__init__()
 
         # 用于表示当前是否正在训练的标志变量
         self.train = None
@@ -43,7 +43,7 @@ class FlappyBirdNetwork(torch.nn.Module):
         # 初始化其他参数
         self.time_step = 0
         self.epsilon = epsilon
-        self.actions = FlappyBirdNetwork.ACTIONS
+        self.actions = FlappyBirdQNetwork.ACTIONS
         self.mem_size = mem_size
         self.use_cuda = cuda
         # 创建神经网络
@@ -143,7 +143,7 @@ class FlappyBirdNetwork(torch.nn.Module):
         设置原始状态
         如果不指定原始状态，就用默认的empty_state
         '''
-        self.current_state = state if state is not None else FlappyBirdNetwork.empty_state
+        self.current_state = state if state is not None else FlappyBirdQNetwork.empty_state
 
     def store_transition(self, o_next, action, reward, terminal):
         '''
@@ -154,6 +154,7 @@ class FlappyBirdNetwork(torch.nn.Module):
         :param terminal: 在这一帧游戏是否结束
         '''
         # TODO: 解释下面一句代码的具体含义，该句代码在各处被大量使用
+        # 目前推测，含义为把当前state（4帧图像）最早的一帧去除，加上从游戏得到的最新的一帧图像，作为下一个state
         next_state = np.append(
             self.current_state[1:, :, :], o_next.reshape((1,) + o_next.shape),
             axis=0
