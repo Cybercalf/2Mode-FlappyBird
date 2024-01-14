@@ -41,6 +41,7 @@ train_argument_group.add_argument('--final_e', type=float,
 train_argument_group.add_argument('--observation', type=int,
                                   help='random observation number in the beginning before training',
                                   default=100)
+# TODO: 目前所有训练episode都会用epsilon-greedy选择action，与help中的解释不符，详见training_setting.exploration在ProgramManager中的用法
 train_argument_group.add_argument('--exploration', type=int,
                                   help='number of exploration using epsilon-greedy policy',
                                   default=10000)

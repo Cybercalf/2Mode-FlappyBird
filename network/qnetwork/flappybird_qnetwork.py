@@ -176,6 +176,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         '''
         随机选择一个动作（action）
         '''
+        # TODO: 为什么action的数据格式是np.float32?换成uint8岂不是更省空间？
         action = np.zeros(self.actions, dtype=np.float32)
         """
         设agent随机选取action时，拍翅膀的概率为p
@@ -216,18 +217,41 @@ class FlappyBirdQNetwork(torch.nn.Module):
         action[action_index] = 1
         return action
 
-    def get_action(self):
+    def get_action(self, exploration='e'):
         '''
         根据当前状态（state）选择动作（action）
+        :param: exploration: 探索方式，e=epsilon-greedy，b=Boltzmann Exploration
         '''
 
         """
-        在训练过程中，依据epsilon-greedy策略，agent有概率不按照自己学习得到的规则选择最佳动作，而是随机选择动作，概率由epsilon的值规定
+        在训练过程中，有2中exploration方法：
+        1.依据epsilon-greedy策略，agent有概率不按照自己学习得到的规则选择最佳动作，而是随机选择动作，概率由epsilon的值规定
+        2.依据Boltzmann Exploration方法，依据不同action的Q值大小确定选择每种action的概率，action对应的Q值越大，选择它的概率越高
+
         如果不是训练过程，agent一定会选择（它自己认为的）最佳动作
+
+        TODO: 从一开始就采用Boltzmann Exploration，训练的收敛速度很慢很慢，需要检查究竟是自己写错了，还是这种探索策略本身的问题
+        TODO: 优化三种选择action的方法的逻辑，去掉重复代码
         """
-        if self.train and random.random() <= self.epsilon:
-            return self.get_action_randomly()
-        return self.get_optim_action()
+        if exploration == 'e':
+            if self.train and random.random() <= self.epsilon:
+                action = self.get_action_randomly()
+            else:
+                action = self.get_optim_action()
+        elif exploration == 'b':
+            state = self.current_state
+            with torch.no_grad():
+                state_var = Variable(torch.from_numpy(state)).unsqueeze(0)
+            if self.use_cuda:
+                state_var = state_var.cuda()
+            q_value = self.forward(state_var)
+            q_value_exp = torch.exp(q_value)
+            action = np.zeros(self.actions, dtype=np.float32)
+            action[0 if random.random() < (q_value_exp / torch.sum(q_value_exp))[0][0].item() else 1] = 1
+        else:
+            raise ValueError('invalid exploration method when getting action')
+
+        return action
 
     def increase_time_step(self, time_step=1):
         '''

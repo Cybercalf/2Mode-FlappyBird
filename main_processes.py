@@ -243,7 +243,12 @@ class ProgramManager(LoggerSubject):
                 optimizer.zero_grad()
 
                 # 模型依据自身经验决定这一帧采取的action，传入gamestate，获得这一帧的观测图像、奖励值、游戏是否中止
-                action = variable_qnetwork.get_action()
+                # 决定action的方法受到exploration方式的影响，目前支持Epsilon Greedy和Boltzmann Exploration
+                if training_setting.exploration_method == 'Epsilon Greedy':
+                    exploration_mode = 'e'
+                elif training_setting.exploration_method == 'Boltzmann Exploration':
+                    exploration_mode = 'b'
+                action = variable_qnetwork.get_action(exploration=exploration_mode if exploration_mode else 'e')
                 o_next, r, terminal = flappyBird_game_manager.frame_step(action)
                 total_reward += training_setting.gamma**variable_qnetwork.time_step * r
 
