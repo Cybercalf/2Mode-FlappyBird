@@ -212,6 +212,7 @@ class ProgramManager(LoggerSubject):
         o = self.preprocess(o)
         variable_qnetwork.set_initial_state()
 
+        # TODO: 加入device变量，让转移到cuda设备的操作用.to(device)而不是.cuda()实现
         if options.cuda:
             variable_qnetwork = variable_qnetwork.cuda()
 

@@ -242,27 +242,39 @@ class FlappyBirdQNetwork(torch.nn.Module):
         TODO: 优化三种选择action的方法的逻辑，去掉重复代码
         """
         if setting.exploration_method == 'Epsilon Greedy':
+            # Epsilon Greedy
             if self.train and random.random() <= self.epsilon:
                 action = self.get_action_randomly()
             else:
                 action = self.get_optim_action()
         elif setting.exploration_method == 'Boltzmann Exploration':
+            # Boltzmann Exploration
             state = self.current_state
             with torch.no_grad():
                 state_var = Variable(torch.from_numpy(state)).unsqueeze(0)
             if self.use_cuda:
                 state_var = state_var.cuda()
+            """
+            eg. q_value = tensor([[1.0, 2.0]]), tau = 0.5
+            probability = exp(1.0/0.5) / (exp(1.0/0.5) + exp(2.0/0.5))
+            对probability的计算还有一种写法：
+            probability = torch.nn.functional.normalize(
+                torch.exp(q_value / setting.boltzmann_exploration.tau),
+                p=1
+            )[0][0].item()
+            实测这种方法运行速度不如自己求比例
+            下面的算法是目前想到的算法中，经测试最快的
+            """
             q_value = self.forward(state_var)
-            q_value_after_control_by_tau = q_value / setting.boltzmann_exploration.tau
-            q_value_after_control_by_tau_exp = torch.exp(q_value_after_control_by_tau)
-            probability = (q_value_after_control_by_tau_exp / torch.sum(q_value_after_control_by_tau_exp))[0][0].item()
+            q_value_after_control = torch.exp(q_value / setting.boltzmann_exploration.tau)
+            probability = (q_value_after_control / torch.sum(q_value_after_control))[0][0].item()
             action = np.zeros(self.actions, dtype=np.float32)
             action[0 if random.random() < probability else 1] = 1
             # TODO: debug
-            # print("q_value: {}".format(q_value))
+            print("q_value: {}".format(q_value))
             # print("q_value_after_control_by_tau: {}".format(q_value_after_control_by_tau))
             # print("q_value_after_control_by_tau_exp: {}".format(q_value_after_control_by_tau_exp))
-            # print("probability: {}".format(probability))
+            print("probability: {}".format(probability))
         else:
             raise ValueError('invalid exploration method when getting action')
 
