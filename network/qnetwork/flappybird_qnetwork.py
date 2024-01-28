@@ -238,6 +238,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         参数过大，选择action更随机，前期训练收敛速度很慢
 
         TODO: Boltzmann Exploration引入了大量的浮点数运算，尝试加速
+        TODO: 经测试，Boltzmann Exploration用于finetune的效果也不好，找原因
 
         TODO: 优化三种选择action的方法的逻辑，去掉重复代码
         """
