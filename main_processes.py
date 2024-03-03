@@ -303,7 +303,7 @@ class ProgramManager(LoggerSubject):
                 进阶方法(Double DQN)：
                 $y = r_t + Q'(s_{t+1}, arg\underset{a}{max}Q(s_{t+1}, a))$
                 """
-                if self.training_setting.advanced_method == 'Double DQN':
+                if 'Double DQN' in self.training_setting.advanced_method:
                     # max_q.shape: Tensor([32])
                     # max_q_index.shape: Tensor([32]), max_q_index每个位置的值只会是0或1
                     # target_qnetwork.forward(next_state_batch_var).shape: Tensor([32, 2]), 二维数组

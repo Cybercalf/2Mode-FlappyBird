@@ -102,11 +102,9 @@ class TrainingSettingLoader:
                 if tau > 0:
                     self.setting.boltzmann_exploration.tau = tau
 
-        # TODO: 后续可能要修改advanced_method的结构，使多种进阶技术可以被使用，目前一次最多只能使用一种
         # TODO: 尝试引入Prioritized Reply
-        advanced_method = json_dict.get('advanced_method', None)
-        if advanced_method in ['None', 'Double DQN', 'Dueling DQN', 'Prioritized Replay', 'Multi-step', 'Noisy Net']:
-            self.setting.advanced_method = advanced_method
+        advanced_method = json_dict.get('advanced_method', [])
+        self.setting.advanced_method = advanced_method
 
     def validate_setting_from_args(self, args):
         '''
@@ -207,7 +205,7 @@ class DefaultTrainingSetting:
         self.exploration_method = 'Epsilon Greedy'
         self.epsilon_greedy = self.EpsilonGreedy()
         self.boltzmann_exploration = self.BoltzmannExploration()
-        self.advanced_method = 'None'
+        self.advanced_method = []
         self.cuda = False
         self.model_path = ''
 
