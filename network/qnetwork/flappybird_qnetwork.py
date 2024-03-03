@@ -26,7 +26,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         axis=0
     )
 
-    def __init__(self, epsilon, mem_size, cuda):
+    def __init__(self, epsilon, mem_size, cuda, dueling_dqn=False):
         '''
         创建实例的方法
 
@@ -46,6 +46,9 @@ class FlappyBirdQNetwork(torch.nn.Module):
         self.actions = FlappyBirdQNetwork.ACTIONS
         self.mem_size = mem_size
         self.use_cuda = cuda
+
+        self.dueling_dqn = dueling_dqn
+        print("dueling_dqn: ", self.dueling_dqn)
         # 创建神经网络
         self.createQNetwork()
 
@@ -84,7 +87,12 @@ class FlappyBirdQNetwork(torch.nn.Module):
             self.map_size[0] * self.map_size[1] * self.map_size[2], 256
         )
         self.relu3 = torch.nn.ReLU(inplace=True)
-        self.fc2 = torch.nn.Linear(256, self.actions)
+
+        if self.dueling_dqn:
+            self.fc2_a = torch.nn.Linear(256, self.actions)
+            self.fc2_v = torch.nn.Linear(256, 1)
+        else:
+            self.fc2 = torch.nn.Linear(256, self.actions)
 
     def get_q_value(self, o):
         '''
@@ -116,8 +124,15 @@ class FlappyBirdQNetwork(torch.nn.Module):
         out = out.view(out.size()[0], -1)
         out = self.fc1(out)
         out = self.relu3(out)
-        out = self.fc2(out)
-        return out
+
+        if self.dueling_dqn:
+            out_v = self.fc2_v(out)
+            out_a = self.fc2_a(out)
+            out_q = out_v + out_a - torch.mean(out_a, dim=1, keepdim=True)
+            return out_q
+        else:
+            out = self.fc2(out)
+            return out
 
     def forward(self, o):
         '''
@@ -271,11 +286,6 @@ class FlappyBirdQNetwork(torch.nn.Module):
             probability = (q_value_after_control / torch.sum(q_value_after_control))[0][0].item()
             action = np.zeros(self.actions, dtype=np.float32)
             action[0 if random.random() < probability else 1] = 1
-            # TODO: debug
-            print("q_value: {}".format(q_value))
-            # print("q_value_after_control_by_tau: {}".format(q_value_after_control_by_tau))
-            # print("q_value_after_control_by_tau_exp: {}".format(q_value_after_control_by_tau_exp))
-            print("probability: {}".format(probability))
         else:
             raise ValueError('invalid exploration method when getting action')
 

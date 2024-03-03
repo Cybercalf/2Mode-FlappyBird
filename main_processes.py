@@ -190,7 +190,8 @@ class ProgramManager(LoggerSubject):
         1.一个在训练过程中经常变化权重的QNetwork，用于训练
         """
         variable_qnetwork = QNetwork(epsilon=self.training_setting.epsilon_greedy.init_e,
-                                     mem_size=self.training_setting.memory_size, cuda=self.training_setting.cuda)
+                                     mem_size=self.training_setting.memory_size, cuda=self.training_setting.cuda,
+                                     dueling_dqn=True if 'Dueling DQN' in self.training_setting.advanced_method else False)
 
         """
         检查训练过程是否基于一个给定的模型开始
