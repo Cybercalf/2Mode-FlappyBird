@@ -187,7 +187,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         else:
             self.set_initial_state()
 
-    def get_action_randomly(self, pr_of_flapping=0.2):
+    def get_action_randomly(self, pr_of_flapping=0.075):
         '''
         随机选择一个动作（action）
         '''
