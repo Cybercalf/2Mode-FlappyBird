@@ -173,6 +173,10 @@ class TrainingSettingLoader:
                 self.setting.epsilon_greedy.init_e = init_e
                 self.setting.epsilon_greedy.final_e = final_e
 
+        self.setting.cuda = args.cuda
+
+        self.setting.model_path = args.model_path
+
 
 class DefaultTrainingSetting:
     '''
@@ -204,6 +208,8 @@ class DefaultTrainingSetting:
         self.epsilon_greedy = self.EpsilonGreedy()
         self.boltzmann_exploration = self.BoltzmannExploration()
         self.advanced_method = 'None'
+        self.cuda = False
+        self.model_path = ''
 
 
 class JsonLoader:
@@ -217,7 +223,7 @@ class JsonLoader:
                 self.content = json.load(f)
         except Exception:
             self.content = None
-            raise FileNotFoundError('json not found')
+            # raise FileNotFoundError('json not found')
 
     def get_content(self):
         return self.content

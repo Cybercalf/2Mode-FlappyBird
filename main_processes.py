@@ -39,6 +39,16 @@ class ProgramManager(LoggerSubject):
         self.register_observer(self.file_info_logger, 'info')
         self.register_observer(self.file_error_logger, 'error')
 
+    def load_training_setting(self, training_setting):
+        '''
+        加载训练设置
+        '''
+        self.training_setting = training_setting
+        if self.training_setting.cuda is True:
+            self.device = torch.device('cuda:0')
+        else:
+            self.device = torch.device('cpu')
+
     def preprocess(self, frame, image_size_after_resize=(72, 128)):
         '''
         对输入的帧图像做预处理
@@ -143,7 +153,14 @@ class ProgramManager(LoggerSubject):
 
         return episode, epsilon, time_step
 
-    def train_model(self, options, training_setting):
+    def train_model(self, training_setting):
+        '''
+        加载训练设置并训练模型
+        '''
+        self.load_training_setting(training_setting)
+        self.training_process()
+
+    def training_process(self):
         '''
         训练模型的核心过程
 
@@ -172,23 +189,23 @@ class ProgramManager(LoggerSubject):
         初始化QNetwork
         1.一个在训练过程中经常变化权重的QNetwork，用于训练
         """
-        variable_qnetwork = QNetwork(epsilon=training_setting.epsilon_greedy.init_e,
-                                     mem_size=training_setting.memory_size, cuda=options.cuda)
+        variable_qnetwork = QNetwork(epsilon=self.training_setting.epsilon_greedy.init_e,
+                                     mem_size=self.training_setting.memory_size, cuda=self.training_setting.cuda)
 
         """
         检查训练过程是否基于一个给定的模型开始
         """
-        if training_setting.resume:
+        if self.training_setting.resume:
             # 2024.01.04
             # 目前程序未传入--model参数时，当做人类游玩游戏处理，所以下面这个异常理论上不会被触发
-            if options.model_path is None:
+            if self.training_setting.model_path is None:
                 self.generate_log(message='Error: when resume, you should give weight file name.',
                                   level='error', location=os.path.split(__file__)[1])
                 return
-            self.generate_log(message='load previous model weight: {}'.format(options.model_path),
+            self.generate_log(message='load previous model weight: {}'.format(self.training_setting.model_path),
                               level='info', location=os.path.split(__file__)[1])
             _, _, best_time_step = self.load_checkpoint(
-                options.model_path, variable_qnetwork)
+                self.training_setting.model_path, variable_qnetwork)
 
         """
         初始化各参数
@@ -204,7 +221,7 @@ class ProgramManager(LoggerSubject):
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
 
-        optimizer = torch.optim.RMSprop(variable_qnetwork.parameters(), lr=training_setting.lr)
+        optimizer = torch.optim.RMSprop(variable_qnetwork.parameters(), lr=self.training_setting.lr)
         ceriterion = torch.nn.MSELoss()
 
         action = [1, 0]
@@ -213,14 +230,13 @@ class ProgramManager(LoggerSubject):
         variable_qnetwork.set_initial_state()
 
         # TODO: 加入device变量，让转移到cuda设备的操作用.to(device)而不是.cuda()实现
-        if options.cuda:
-            variable_qnetwork = variable_qnetwork.cuda()
+        variable_qnetwork = variable_qnetwork.to(self.device)
 
         """
         训练开始前，随机选取action操作小鸟，并将数据保存起来
         随机操作的次数取决于training_setting.observation
         """
-        for i in range(training_setting.observation):
+        for i in range(self.training_setting.observation):
             action = variable_qnetwork.get_action_randomly()
             o, r, terminal = flappyBird_game_manager.frame_step(action)
             o = self.preprocess(o)
@@ -234,7 +250,7 @@ class ProgramManager(LoggerSubject):
         target_qnetwork = copy.deepcopy(variable_qnetwork)
 
         # 注意episode从0开始编号，所以训练次数可以在max_episode的基础上+1，否则最后的一部分训练结果没有机会保存下来
-        for episode in range(training_setting.max_episode + 1):
+        for episode in range(self.training_setting.max_episode + 1):
             variable_qnetwork.time_step = 0
             variable_qnetwork.set_train()
             total_reward = 0.
@@ -245,9 +261,9 @@ class ProgramManager(LoggerSubject):
 
                 # 模型依据自身经验决定这一帧采取的action，传入gamestate，获得这一帧的观测图像、奖励值、游戏是否中止
                 # 决定action的方法受到exploration方式的影响，目前支持Epsilon Greedy和Boltzmann Exploration
-                action = variable_qnetwork.get_action(setting=training_setting)
+                action = variable_qnetwork.get_action(setting=self.training_setting)
                 o_next, r, terminal = flappyBird_game_manager.frame_step(action)
-                total_reward += training_setting.gamma**variable_qnetwork.time_step * r
+                total_reward += self.training_setting.gamma**variable_qnetwork.time_step * r
 
                 # 对这一帧图像做预处理
                 o_next = self.preprocess(o_next)
@@ -258,7 +274,7 @@ class ProgramManager(LoggerSubject):
 
                 # Step 1: obtain random minibatch from replay memory
                 minibatch = random.sample(
-                    variable_qnetwork.replay_memory, training_setting.batch_size)
+                    variable_qnetwork.replay_memory, self.training_setting.batch_size)
                 state_batch = np.array([data[0] for data in minibatch])
                 action_batch = np.array([data[1] for data in minibatch])
                 reward_batch = np.array([data[2] for data in minibatch])
@@ -267,9 +283,8 @@ class ProgramManager(LoggerSubject):
                 with torch.no_grad():
                     next_state_batch_var = Variable(
                         torch.from_numpy(next_state_batch))
-                if options.cuda:
-                    state_batch_var = state_batch_var.cuda()
-                    next_state_batch_var = next_state_batch_var.cuda()
+                state_batch_var = state_batch_var.to(self.device)
+                next_state_batch_var = next_state_batch_var.to(self.device)
 
                 """
                 Step 2: calculate y
@@ -288,7 +303,7 @@ class ProgramManager(LoggerSubject):
                 进阶方法(Double DQN)：
                 $y = r_t + Q'(s_{t+1}, arg\underset{a}{max}Q(s_{t+1}, a))$
                 """
-                if training_setting.advanced_method == 'Double DQN':
+                if self.training_setting.advanced_method == 'Double DQN':
                     # max_q.shape: Tensor([32])
                     # max_q_index.shape: Tensor([32]), max_q_index每个位置的值只会是0或1
                     # target_qnetwork.forward(next_state_batch_var).shape: Tensor([32, 2]), 二维数组
@@ -297,24 +312,23 @@ class ProgramManager(LoggerSubject):
                     _, max_q_index = torch.max(q_value_next, dim=1)
                     # TODO: 下面这个索引方式有无更好的方式代替
                     recalculated_q = target_qnetwork.forward(next_state_batch_var)[
-                        torch.arange(0, training_setting.batch_size), max_q_index]
-                    for i in range(training_setting.batch_size):
+                        torch.arange(0, self.training_setting.batch_size), max_q_index]
+                    for i in range(self.training_setting.batch_size):
                         if not minibatch[i][4]:
-                            y[i] += training_setting.gamma * recalculated_q.data[i].item()
+                            y[i] += self.training_setting.gamma * recalculated_q.data[i].item()
                 else:
                     max_q, _ = torch.max(q_value_next, dim=1)
 
-                    for i in range(training_setting.batch_size):
+                    for i in range(self.training_setting.batch_size):
                         if not minibatch[i][4]:
-                            y[i] += training_setting.gamma * max_q.data[i].item()
+                            y[i] += self.training_setting.gamma * max_q.data[i].item()
 
                 y = Variable(torch.from_numpy(y))
 
                 action_batch_var = Variable(torch.from_numpy(action_batch))
 
-                if options.cuda:
-                    y = y.cuda()
-                    action_batch_var = action_batch_var.cuda()
+                y = y.to(self.device)
+                action_batch_var = action_batch_var.to(self.device)
 
                 q_value = torch.sum(
                     torch.mul(
@@ -337,16 +351,16 @@ class ProgramManager(LoggerSubject):
                 level='info', location=os.path.split(__file__)[1])
 
             # 经过一次episode后，降低epsilon的值
-            if variable_qnetwork.epsilon > training_setting.epsilon_greedy.final_e:
-                delta = (training_setting.epsilon_greedy.init_e - training_setting.epsilon_greedy.final_e) / \
-                    training_setting.exploration
+            if variable_qnetwork.epsilon > self.training_setting.epsilon_greedy.final_e:
+                delta = (self.training_setting.epsilon_greedy.init_e - self.training_setting.epsilon_greedy.final_e) / \
+                    self.training_setting.exploration
                 variable_qnetwork.epsilon -= delta
 
             """
             每经过一定次数的episode，将target_qnetwork更新为当前的variable_qnetwork
             TODO: 找到一个更好的更新target_qnetwork的时机
             """
-            if episode % training_setting.update_target_qnetwork_freq == 0:
+            if episode % self.training_setting.update_target_qnetwork_freq == 0:
                 target_qnetwork = copy.deepcopy(variable_qnetwork)
 
             """
@@ -359,7 +373,7 @@ class ProgramManager(LoggerSubject):
             # 用于检查当前episode的模型是否被评估的标志变量
             model_evaluated = False
             # case1: 测试模型
-            if episode % training_setting.test_model_freq == 0:
+            if episode % self.training_setting.test_model_freq == 0:
                 if not model_evaluated:
                     avg_time_step = self.evaluate_avg_time_step(variable_qnetwork, episode)
                     model_evaluated = True
@@ -378,7 +392,7 @@ class ProgramManager(LoggerSubject):
                         level='info', location=os.path.split(__file__)[1])
 
             # case2: 保存检查点
-            if episode % training_setting.save_checkpoint_freq == 0 and not checkpoint_saved:
+            if episode % self.training_setting.save_checkpoint_freq == 0 and not checkpoint_saved:
                 if not model_evaluated:
                     avg_time_step = self.evaluate_avg_time_step(variable_qnetwork, episode)
                     model_evaluated = True
