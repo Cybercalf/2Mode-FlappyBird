@@ -50,7 +50,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         self.use_cuda = cuda
 
         self.dueling_dqn = dueling_dqn
-        print("dueling_dqn: ", self.dueling_dqn)
+
         # 创建神经网络
         self.createQNetwork()
 

@@ -22,6 +22,9 @@ class Setting:
     SHOW_RL_OBSERVATION_SCREEN = False
     # 是否解除对游戏窗口刷新速度的控制(用于加快训练)
     UNLIMIT_SCREEN_UPDATE = False
+    # 是否隐藏游戏窗口
+    # TODO: 如果隐藏游戏窗口，“显示强化学习用到的游戏界面”功能就用不到了
+    HIDE_WINDOW = False
 
     def __init__(self):
         pass
@@ -37,8 +40,10 @@ class Setting:
             self.PRINT_CONSOLE_LOG = False
             self.SHOW_RL_OBSERVATION_SCREEN = True
             self.UNLIMIT_SCREEN_UPDATE = True
+            self.HIDE_WINDOW = True
         else:
             self.SOUND_PLAY = True
             self.PRINT_CONSOLE_LOG = True
             self.SHOW_RL_OBSERVATION_SCREEN = False
             self.UNLIMIT_SCREEN_UPDATE = False
+            self.HIDE_WINDOW = False

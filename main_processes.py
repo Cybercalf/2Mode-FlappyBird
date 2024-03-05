@@ -29,10 +29,10 @@ class ProgramManager(LoggerSubject):
         """
         在初始化时，自动注册日志打印器，之后输出日志时，直接调用父类的打印方法即可
         """
-        self.console_info_logger = ConsoleLoggerOberver()
-        self.console_error_logger = ConsoleLoggerOberver()
-        self.register_observer(self.console_info_logger, 'info')
-        self.register_observer(self.console_error_logger, 'error')
+        # self.console_info_logger = ConsoleLoggerOberver()
+        # self.console_error_logger = ConsoleLoggerOberver()
+        # self.register_observer(self.console_info_logger, 'info')
+        # self.register_observer(self.console_error_logger, 'error')
 
         self.file_info_logger = FileLoggerObserver('{}.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
         self.file_error_logger = FileLoggerObserver('{}.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
@@ -408,7 +408,7 @@ class ProgramManager(LoggerSubject):
                 continue
 
     def evaluate_avg_time_step(
-            self, model, current_episode, test_episode_num=20):
+            self, model, current_episode, test_episode_num=45):
         '''
         评估当前模型在数次游戏中坚持的平均时间，用于测试当前模型的游戏效果
 
@@ -418,8 +418,7 @@ class ProgramManager(LoggerSubject):
         模型在与训练相同的gamestate下游玩n次，游玩过程采取的action全部为依据自身数据选择的，而非随机选取。n次游戏结束后，返回平均游戏时间。
 
         原作者设定n=5
-        目前设定n=20，舍弃最好与最差的5次，试图降低某些极端情况的影响
-        效果一般，
+        目前设定n=45，舍弃最好与最差的10次，试图降低某些极端情况的影响
 
         :param model: dqn model
         :param episode: current training episode
@@ -447,7 +446,7 @@ class ProgramManager(LoggerSubject):
                     model.current_state[1:, :, :], o.reshape((1,) + o.shape), axis=0)
                 model.increase_time_step()
             time_step_list.append(model.time_step)
-        time_step_list = sorted(time_step_list)[5:-5]
+        time_step_list = sorted(time_step_list)[10:-10]
         avg_time_step = sum(time_step_list) / len(time_step_list)
 
         self.generate_log(message='testing: episode: {}, average time step: {}'.format(
