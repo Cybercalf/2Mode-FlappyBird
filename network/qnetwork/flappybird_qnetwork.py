@@ -5,6 +5,8 @@ import torch
 import torch.nn
 from torch.autograd import Variable
 
+# TODO: 重构QNetwork，让经验回放和神经网络的代码分开
+
 
 class FlappyBirdQNetwork(torch.nn.Module):
     '''
@@ -71,8 +73,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         """
         self.conv1 = torch.nn.Conv2d(4, 32, kernel_size=8, stride=4, padding=2)
         self.relu1 = torch.nn.ReLU(inplace=True)
-        self.conv2 = torch.nn.Conv2d(
-            32, 64, kernel_size=4, stride=2, padding=1)
+        self.conv2 = torch.nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1)
         self.relu2 = torch.nn.ReLU(inplace=True)
         # 经过第2个卷积层之后，tensor后3个维度的尺寸如map_size所示
         self.map_size = (64, 16, 9)
@@ -83,9 +84,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         in_features: 第一个参数。输入的神经元个数
         out_features: 第二个参数。输出的神经元个数
         """
-        self.fc1 = torch.nn.Linear(
-            self.map_size[0] * self.map_size[1] * self.map_size[2], 256
-        )
+        self.fc1 = torch.nn.Linear(self.map_size[0] * self.map_size[1] * self.map_size[2], 256)
         self.relu3 = torch.nn.ReLU(inplace=True)
 
         if self.dueling_dqn:
@@ -99,7 +98,7 @@ class FlappyBirdQNetwork(torch.nn.Module):
         根据当前的观测o，给出对应的Q值
         '''
 
-        # TODO: 搞清楚各个维度上数据的含义，尤其是进入网络之前的数据，以及经过第一个卷积层后数据尺寸是怎么变化的
+        # TODO: 搞清楚各个维度上数据的含义，尤其是进入网络之前的数据
         """
         before go into the net, size: torch.Size([1, 4, 128, 72])
         after self.conv1, size: torch.Size([1, 32, 32, 18])
@@ -168,8 +167,8 @@ class FlappyBirdQNetwork(torch.nn.Module):
         :param reward: agent在这一帧得到的奖励值
         :param terminal: 在这一帧游戏是否结束
         '''
-        # TODO: 解释下面一句代码的具体含义，该句代码在各处被大量使用
-        # 目前推测，含义为把当前state（4帧图像）最早的一帧去除，加上从游戏得到的最新的一帧图像，作为下一个state
+        # 目前推测，下面一句代码的含义为把当前state（4帧图像）最早的一帧去除，加上从游戏得到的最新的一帧图像，作为下一个state
+        # 该句代码在各处被大量使用
         next_state = np.append(
             self.current_state[1:, :, :], o_next.reshape((1,) + o_next.shape),
             axis=0
@@ -252,10 +251,10 @@ class FlappyBirdQNetwork(torch.nn.Module):
         参数过小，选择action更加贪心，前期训练可能收敛更快，但后期网络几乎不会再作探索
         参数过大，选择action更随机，前期训练收敛速度很慢
 
-        TODO: Boltzmann Exploration引入了大量的浮点数运算，尝试加速
-        TODO: 经测试，Boltzmann Exploration用于finetune的效果也不好，找原因
-
-        TODO: 优化三种选择action的方法的逻辑，去掉重复代码
+        TODO:
+        1.Boltzmann Exploration引入了大量的浮点数运算，尝试加速
+        2.经测试，Boltzmann Exploration用于finetune的效果也不好，找原因
+        3.优化三种选择action的方法的逻辑，去掉重复代码
         """
         if setting.exploration_method == 'Epsilon Greedy':
             # Epsilon Greedy

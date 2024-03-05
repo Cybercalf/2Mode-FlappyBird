@@ -101,8 +101,6 @@ class TrainingSettingLoader:
             if tau:
                 if tau > 0:
                     self.setting.boltzmann_exploration.tau = tau
-
-        # TODO: 尝试引入其他DQN进阶技巧
         advanced_method = json_dict.get('advanced_method', [])
         self.setting.advanced_method = advanced_method
 

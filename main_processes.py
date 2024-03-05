@@ -134,15 +134,11 @@ class ProgramManager(LoggerSubject):
         输出加载的模型在训练过程中操纵小鸟飞行的最长时间
         """
 
-        # ------ begin of TODO ------
-        # best_time_step是过去checkpoint使用的参数。在重新训练模型之后，请将此部分语句改为：
-        # time_step = checkpoint.get('time_step', None)
-
-        time_step = checkpoint.get('best_time_step', None)
-        if time_step is None:
-            time_step = checkpoint.get('time_step', None)
-
-        # ------ end of TODO ------
+        # best_time_step是过去checkpoint使用的参数。对于使用原项目训练的模型，语句应为：
+        # time_step = checkpoint.get('best_time_step', None)
+        # if time_step is None:
+        #     time_step = checkpoint.get('time_step', None)
+        time_step = checkpoint.get('time_step', None)
 
         if time_step is None:
             self.generate_log(message='Error: the model to be loaded has no attribute named "time_step".',
@@ -230,7 +226,6 @@ class ProgramManager(LoggerSubject):
         o = self.preprocess(o)
         variable_qnetwork.set_initial_state()
 
-        # TODO: 加入device变量，让转移到cuda设备的操作用.to(device)而不是.cuda()实现
         variable_qnetwork = variable_qnetwork.to(self.device)
 
         """
@@ -289,7 +284,6 @@ class ProgramManager(LoggerSubject):
 
                 """
                 Step 2: calculate y
-                TODO: 看懂y值的计算步骤
                 """
                 q_value_next = variable_qnetwork.forward(next_state_batch_var)
 
@@ -424,7 +418,8 @@ class ProgramManager(LoggerSubject):
         模型在与训练相同的gamestate下游玩n次，游玩过程采取的action全部为依据自身数据选择的，而非随机选取。n次游戏结束后，返回平均游戏时间。
 
         原作者设定n=5
-        TODO: debug. 设定n=20，舍弃最好与最差的5次
+        目前设定n=20，舍弃最好与最差的5次，试图降低某些极端情况的影响
+        效果一般，
 
         :param model: dqn model
         :param episode: current training episode
