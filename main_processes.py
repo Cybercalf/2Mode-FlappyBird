@@ -335,6 +335,14 @@ class ProgramManager(LoggerSubject):
                 loss.backward()
 
                 optimizer.step()
+
+                """
+                每经过一定次数的time_step，将target_qnetwork更新为当前的variable_qnetwork
+                TODO: 找到一个更好的更新target_qnetwork的时机
+                """
+                if variable_qnetwork.time_step % self.training_setting.update_target_qnetwork_freq == 0:
+                    target_qnetwork = copy.deepcopy(variable_qnetwork)
+
                 # when the bird dies, the episode ends
                 if terminal:
                     break
@@ -350,13 +358,6 @@ class ProgramManager(LoggerSubject):
                 delta = (self.training_setting.epsilon_greedy.init_e - self.training_setting.epsilon_greedy.final_e) / \
                     self.training_setting.exploration
                 variable_qnetwork.epsilon -= delta
-
-            """
-            每经过一定次数的episode，将target_qnetwork更新为当前的variable_qnetwork
-            TODO: 找到一个更好的更新target_qnetwork的时机
-            """
-            if episode % self.training_setting.update_target_qnetwork_freq == 0:
-                target_qnetwork = copy.deepcopy(variable_qnetwork)
 
             """
             每经过一定次数的episode，测试训练后模型的效果(具体次数为training_setting.test_model_freq，默认值见程序入口)
