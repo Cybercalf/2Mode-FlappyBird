@@ -162,6 +162,7 @@ cython_debug/
 
 **/.vscode
 backup/
+checkpoint/
 assets/raw/
 original/
 model/
