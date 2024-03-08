@@ -21,7 +21,7 @@ class FileLoggerObserver(LoggerObserver):
 
     def __init__(self, output_file_path):
         super().__init__()
-        self.folder = './log/'
+        self.folder = './runtime_output/log/'
         os.makedirs(self.folder, exist_ok=True)
         self.output_file_path = self.folder + output_file_path
         self.file = open(self.output_file_path, 'a+')

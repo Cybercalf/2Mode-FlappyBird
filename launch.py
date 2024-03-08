@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 import torch.cuda
-import main_processes
+from main_processes import ProgramManager
 from settings.loader import TrainingSettingLoader
 # import cProfile
 
@@ -30,7 +30,6 @@ train_argument_group.add_argument('--gamma', type=float,
                                   help='discount rate', default=0.99)
 train_argument_group.add_argument('--batch_size', type=int,
                                   help='batch size', default=32)
-# TODO: 尝试更改memory_size（比如适当减小），看训练效果
 train_argument_group.add_argument('--memory_size', type=int,
                                   help='memory size for experience replay', default=5000)
 train_argument_group.add_argument('--init_e', type=float,
@@ -63,7 +62,7 @@ if __name__ == '__main__':
     '''
     args = parser.parse_args()
 
-    program_manager = main_processes.ProgramManager()
+    program_manager = ProgramManager()
 
     # 如果非训练模式下，模型路径没有被传入程序，则开始真人游玩
     if not args.train and (args.model_path == '' or args.model_path is None):
@@ -92,7 +91,7 @@ if __name__ == '__main__':
             """
             training_setting = TrainingSettingLoader(args, args.json).get_setting()
             # 进入训练过程
-            program_manager.train_model(options=args, training_setting=training_setting)
+            program_manager.train(training_setting)
             # cProfile.run("program_manager.train_model(options=args, training_setting=training_setting)", 'restats')
         else:
             program_manager.play_game(player='computer', args=args)

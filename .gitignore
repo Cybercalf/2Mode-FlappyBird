@@ -162,15 +162,18 @@ cython_debug/
 
 **/.vscode
 backup/
-assets/raw/
-original/
-model/
-weight/
+checkpoint/
+runtime_output/
+flappybird/assets/raw/
 study_notes/
-*json*
-*yaml*
-temp*
-test*
-log*
+temp/
+
+**json**
+**yaml**
+**test**
+**temp**
+
+**/__pycache__
+*.pyc
 *.tar
 *.sh

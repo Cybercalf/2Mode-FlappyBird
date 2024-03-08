@@ -34,7 +34,9 @@ class GameManager():
 
         # 定义游戏屏幕信息
         self.screen = pygame.display.set_mode(
-            (self.setting.SCREENWIDTH, self.setting.SCREENHEIGHT))
+            (self.setting.SCREENWIDTH, self.setting.SCREENHEIGHT),
+            flags=pygame.HIDDEN if self.setting.HIDE_WINDOW is True else pygame.SHOWN
+        )
         pygame.display.set_caption('Flappy Bird Demo')
 
         # 定义游戏时钟
