@@ -4,7 +4,7 @@
 
 ## Preface
 
-Please note that the part of code about DQN in this project heavily references [the project from xmfbit](https://github.com/xmfbit/DQN-FlappyBird) currently.
+Please note that the structure of Q-Network in this project references [the project from xmfbit](https://github.com/xmfbit/DQN-FlappyBird) currently.
 
 Here are the versions of some of the dependencies I used:
 

@@ -1,7 +1,6 @@
 import sys
 import os
 import time
-import shutil
 import copy
 
 import numpy as np
@@ -13,8 +12,9 @@ import torch.optim
 
 from rl_module.agent import FlappyAgent
 from rl_module.custom_enum import NetStruct, ExplorationMethod
-from util.logger.logger_subject import LoggerSubject
-from util.logger.logger_observer import ConsoleLoggerOberver, FileLoggerObserver
+from rl_module.file import FileHandler
+from logger.subject import LoggerSubject
+from logger.observer import ConsoleLoggerOberver, FileLoggerObserver
 import flappybird.settings
 from flappybird.game_manager import GameManager as FlappyBirdGameManager
 
@@ -26,18 +26,21 @@ class ProgramManager(LoggerSubject):
 
     def __init__(self):
         super().__init__()
-        """
-        在初始化时，自动注册日志打印器，之后输出日志时，直接调用父类的打印方法即可
-        """
+
+        # 在初始化时，自动注册日志打印器，之后输出日志时，直接调用父类的打印方法即可
         self.console_info_logger = ConsoleLoggerOberver()
         self.console_error_logger = ConsoleLoggerOberver()
         self.register_observer(self.console_info_logger, 'info')
         self.register_observer(self.console_error_logger, 'error')
 
-        self.file_info_logger = FileLoggerObserver('{}.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
-        self.file_error_logger = FileLoggerObserver('{}.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
+        self.file_info_logger = FileLoggerObserver('{}_info.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
+        self.file_error_logger = FileLoggerObserver('{}_error.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
         self.register_observer(self.file_info_logger, 'info')
         self.register_observer(self.file_error_logger, 'error')
+
+        # 初始化文件处理工具，用于将模型信息保存到磁盘、从磁盘加载模型信息
+        checkpoint_save_path = './runtime_output/checkpoint/checkpoint_' + time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + '/'
+        self.file_handler = FileHandler(checkpoint_save_path)
 
     def frame_preprocess(self, frame, image_size_after_resize=(72, 128)):
         '''
@@ -67,83 +70,6 @@ class ProgramManager(LoggerSubject):
         self.training_setting = setting
         self.device = torch.device('cuda:0') if self.training_setting.cuda else torch.device('cpu')
 
-    def save_to_disk(self, checkpoint, filepath='checkpoint.pth.tar'):
-        '''
-        将网络参数等信息保存到磁盘
-
-        :param checkpoint: model weight and other info binding by user
-        '''
-        torch.save(checkpoint, filepath)
-
-    def load_from_disk(self, filepath) -> dict:
-        '''
-        从磁盘中加载网络参数等信息
-
-        :param filepath: 要加载的信息路径
-        '''
-
-        checkpoint = None
-
-        try:
-            checkpoint = torch.load(filepath)
-
-        # 若从磁盘中找不到要加载的文件，生成错误日志并退出
-        except FileNotFoundError as file_not_found_error:
-            self.generate_log(message='Error raised when loading model. Type: {}, Description: {}'.format(
-                type(file_not_found_error), file_not_found_error),
-                level='error', location=os.path.split(__file__)[1])
-            sys.exit(1)
-
-        # 如果磁盘文件以gpu的方式存储，直接加载到cpu上可能会出现异常，检测到异常时尝试使用另一种方法加载
-        except BaseException as e:
-            self.generate_log(
-                message='Exception raised when loading model. Type: {}, Description: {}. Trying another way to load model.'.format(type(e), e), level='info', location=os.path.split(__file__)[1])
-            # load weight saved on gpu device to cpu device
-            # see https://discuss.pytorch.org/t/on-a-cpu-device-how-to-load-checkpoint-saved-on-gpu-device/349/3
-            checkpoint = torch.load(
-                filepath, map_location=lambda storage, loc: storage)
-
-        """
-        调试输出(debug)
-        输出加载的模型在上一次训练过程中经过了多少轮回合，用于探索的epsilon值为多少
-        """
-        episode = checkpoint['episode']
-        epsilon = checkpoint['epsilon']
-        # is_best = checkpoint['is_best_model_by_far']
-        self.generate_log(message='pretrained episode = {}'.format(episode),
-                          level='info', location=os.path.split(__file__)[1])
-        self.generate_log(message='pretrained epsilon = {}'.format(epsilon),
-                          level='info', location=os.path.split(__file__)[1])
-        # self.generate_log(message='model.is_best: {}'.format(is_best),
-        #                   level='info', location=os.path.split(__file__)[1])
-
-        """
-        调试输出(debug)
-        输出加载的模型在训练过程中操纵小鸟飞行的最长时间
-        """
-
-        # best_time_step是过去checkpoint使用的参数。对于使用原项目训练的模型，语句应为：
-        # time_step = checkpoint.get('best_time_step', None)
-        # if time_step is None:
-        #     time_step = checkpoint.get('time_step', None)
-        time_step = checkpoint.get('time_step', None)
-
-        if time_step is None:
-            self.generate_log(message='Error: the model to be loaded has no attribute named "time_step".',
-                              level='error', location=os.path.split(__file__)[1])
-            sys.exit(1)
-        self.generate_log(message='pretrained time step = {}'.format(time_step),
-                          level='info', location=os.path.split(__file__)[1])
-
-        """
-        若加载信息失败，退出程序
-        """
-        if checkpoint is None:
-            self.generate_log(message='Error: load checkpoint failed.', level='error', location=os.path.split(__file__)[1])
-            sys.exit(1)
-
-        return checkpoint
-
     def train(self, setting):
         '''
         加载训练设置并开始训练
@@ -155,13 +81,6 @@ class ProgramManager(LoggerSubject):
         '''
         采用DQN理论进行训练的过程
         '''
-
-        """
-        创建文件夹，用于存放训练过程中保存的模型
-        """
-        checkpoint_folder_name = './checkpoint/checkpoint_' + \
-            time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + '/'
-        os.makedirs(checkpoint_folder_name, exist_ok=True)
 
         # 记录模型的最好游玩效果，用time_step量化
         best_time_step = 0.
@@ -188,7 +107,12 @@ class ProgramManager(LoggerSubject):
             self.generate_log(message='load previous model weight: {}'.format(self.training_setting.model_path),
                               level='info', location=os.path.split(__file__)[1])
             # 从磁盘加载模型
-            checkpoint = self.load_from_disk(self.training_setting.model_path)
+            try:
+                checkpoint = self.file_handler.load(self.training_setting.model_path)
+            except BaseException as e:
+                self.generate_log(message='Error raised when loading model. Type: {}, Description: {}'.format(type(e), e),
+                                  level='error', location=os.path.split(__file__)[1])
+                sys.exit(1)
             best_time_step = checkpoint.get('time_step', 0)
             variable_qnetwork = FlappyAgent(
                 memory_size=self.training_setting.memory_size,
@@ -357,6 +281,7 @@ class ProgramManager(LoggerSubject):
             checkpoint_saved = False
             # 用于检查当前episode的模型是否被评估的标志变量
             model_evaluated = False
+
             # case1: 测试模型
             if episode % self.training_setting.test_model_freq == 0:
                 if not model_evaluated:
@@ -364,35 +289,35 @@ class ProgramManager(LoggerSubject):
                     model_evaluated = True
                 if avg_time_step > best_time_step:
                     best_time_step = avg_time_step
-                    self.save_to_disk({
+                    model_dict = {
                         'episode': episode,
                         'epsilon': epsilon,
                         'state_dict': variable_qnetwork.net.state_dict(),
                         'network_structure': variable_qnetwork.net_struct,
-                        'is_best_model_by_far': True,
                         'time_step': best_time_step,
-                    }, filepath=checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode)
+                    }
+                    self.file_handler.save(model_dict, name='checkpoint-episode-%d.pth.tar' % episode)
                     checkpoint_saved = True
                     self.generate_log(message='save the best checkpoint by far, episode={}, average time step={:.2f}'.format(
                         episode, avg_time_step),
                         level='info', location=os.path.split(__file__)[1])
                     # 把当前最佳的模型信息另外在根目录保存一份
-                    shutil.copyfile(checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode, 'model_best.pth.tar')
+                    self.file_handler.save(model_dict, 'model_best.pth.tar', './')
 
             # case2: 保存检查点
             if episode % self.training_setting.save_checkpoint_freq == 0 and not checkpoint_saved:
                 if not model_evaluated:
                     avg_time_step = self.evaluate_avg_time_step(variable_qnetwork, episode)
                     model_evaluated = True
-                self.save_to_disk({
+                model_dict = {
                     'episode': episode,
                     'epsilon': epsilon,
                     'state_dict': variable_qnetwork.net.state_dict(),
                     'network_structure': variable_qnetwork.net_struct,
-                    'is_best_model_by_far': False,
                     'time_step': avg_time_step,
-                }, filepath=checkpoint_folder_name + 'checkpoint-episode-%d.pth.tar' % episode)
-                self.generate_log(message='save a normal checkpoint, episode={}, average time step={:.2f}'.format(
+                }
+                self.file_handler.save(model_dict, name='checkpoint-episode-%d.pth.tar' % episode)
+                self.generate_log(message='save a checkpoint at a preset frequency, episode={}, average time step={:.2f}'.format(
                     episode, avg_time_step),
                     level='info', location=os.path.split(__file__)[1])
                 checkpoint_saved = True
@@ -462,10 +387,6 @@ class ProgramManager(LoggerSubject):
         elif player == 'computer':
             self.play_game_with_model(model_file_path=args.model_path, cuda=args.cuda)
 
-        # except AttributeError as e:
-        #     self.generate_log(message='Error caught in preparation of playing. Type: {}, description: {}'.format(type(e), e),
-        #                       level='error', location=os.path.split(__file__)[1])
-
     def play_game_with_model(self, model_file_path, cuda=False):
         '''
         使用一个训练过的模型玩flappybird游戏
@@ -480,9 +401,14 @@ class ProgramManager(LoggerSubject):
         并把加载的网络参数赋给network
         """
         self.generate_log(
-            message='load pretrained model file: ' + model_file_path,
+            message='Load pretrained model file: ' + model_file_path,
             level='info', location=os.path.split(__file__)[1])
-        infomation = self.load_from_disk(model_file_path)
+        try:
+            infomation = self.file_handler.load(model_file_path)
+        except BaseException as e:
+            self.generate_log(message='Error raised when loading model. Type: {}, Description: {}'.format(type(e), e),
+                              level='error', location=os.path.split(__file__)[1])
+            sys.exit(1)
         agent = FlappyAgent(memory_size=0, use_cuda=cuda, net_struct=infomation.get('network_structure', NetStruct.NORMAL))
         agent.init_state()
         agent.net.load_state_dict(infomation.get('state_dict'))
