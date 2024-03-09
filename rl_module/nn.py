@@ -49,7 +49,6 @@ class FlappyQNet(torch.nn.Module):
         根据当前的观测o，给出对应的Q值
         '''
 
-        # TODO: 搞清楚各个维度上数据的含义，尤其是进入网络之前的数据
         """
         before go into the net, size: torch.Size([1, 4, 128, 72])
         after self.conv1, size: torch.Size([1, 32, 32, 18])
@@ -78,7 +77,7 @@ class FlappyQNet(torch.nn.Module):
         return q_value
 
 
-class FlappyVAQNet(torch.nn.Module):
+class FlappyDuelingQNet(torch.nn.Module):
     '''
     用于FlappyBird游戏的QNetwork，采用Dueling DQN理论设计网络结构
     '''
@@ -88,7 +87,7 @@ class FlappyVAQNet(torch.nn.Module):
         创建神经网络，在创建类实例时会自动调用
         模型结构：卷积层-卷积层-全连接层-两个分开的全连接层
         '''
-        super(FlappyVAQNet, self).__init__()
+        super(FlappyDuelingQNet, self).__init__()
 
         self.actions = 2  # 输出的动作数量
 
