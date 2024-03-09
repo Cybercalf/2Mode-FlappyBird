@@ -4,7 +4,6 @@ import argparse
 import torch.cuda
 from main_processes import ProgramManager
 from settings.loader import TrainingSettingLoader
-# import cProfile
 
 parser = argparse.ArgumentParser(description='2Mode-FlappyBird')
 
@@ -92,6 +91,5 @@ if __name__ == '__main__':
             training_setting = TrainingSettingLoader(args, args.json).get_setting()
             # 进入训练过程
             program_manager.train(training_setting)
-            # cProfile.run("program_manager.train_model(options=args, training_setting=training_setting)", 'restats')
         else:
             program_manager.play_game(player='computer', args=args)
