@@ -1,7 +1,11 @@
 import os
 import sys
 import argparse
+import time
+
 import torch.cuda
+
+from logger.observer import ConsoleLoggerOberver, FileLoggerObserver
 from main_processes import ProgramManager
 from settings.loader import TrainingSettingLoader
 
@@ -62,6 +66,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     program_manager = ProgramManager()
+
+    # 注册日志打印器，之后输出日志时，直接调用父类的打印方法即可
+    console_info_logger = ConsoleLoggerOberver()
+    console_error_logger = ConsoleLoggerOberver()
+    program_manager.register_observer(console_info_logger, 'info')
+    program_manager.register_observer(console_error_logger, 'error')
+
+    file_info_logger = FileLoggerObserver('{}_info.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
+    file_error_logger = FileLoggerObserver('{}_error.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
+    program_manager.register_observer(file_info_logger, 'info')
+    program_manager.register_observer(file_error_logger, 'error')
 
     # 如果非训练模式下，模型路径没有被传入程序，则开始真人游玩
     if not args.train and (args.model_path == '' or args.model_path is None):

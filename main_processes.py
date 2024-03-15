@@ -16,7 +16,6 @@ from rl_module.file import FileHandler
 from rl_module.nn import FlappyDuelingQNet, FlappyQNet
 from rl_module.replay import ReplayMemory
 from logger.subject import LoggerSubject
-from logger.observer import ConsoleLoggerOberver, FileLoggerObserver
 import flappybird.settings
 from flappybird.game_manager import GameManager as FlappyBirdGameManager
 
@@ -28,17 +27,6 @@ class ProgramManager(LoggerSubject):
 
     def __init__(self):
         super().__init__()
-
-        # 在初始化时，自动注册日志打印器，之后输出日志时，直接调用父类的打印方法即可
-        self.console_info_logger = ConsoleLoggerOberver()
-        self.console_error_logger = ConsoleLoggerOberver()
-        self.register_observer(self.console_info_logger, 'info')
-        self.register_observer(self.console_error_logger, 'error')
-
-        self.file_info_logger = FileLoggerObserver('{}_info.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
-        self.file_error_logger = FileLoggerObserver('{}_error.log'.format(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
-        self.register_observer(self.file_info_logger, 'info')
-        self.register_observer(self.file_error_logger, 'error')
 
         # 初始化文件处理工具，用于将模型信息保存到磁盘、从磁盘加载模型信息
         checkpoint_save_path = './runtime_output/checkpoint/checkpoint_' + time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + '/'
@@ -122,10 +110,10 @@ class ProgramManager(LoggerSubject):
             if 'Dueling DQN' in self.training_setting.advanced_method:
                 variable_qnetwork = FlappyDuelingQNet().to(self.device)
             else:
-                variable_qnetwork = FlappyQNet()
+                variable_qnetwork = FlappyQNet().to(self.device)
 
         # 初始化target q-network
-        target_qnetwork = copy.deepcopy(variable_qnetwork)
+        target_qnetwork = copy.deepcopy(variable_qnetwork).to(self.device)
 
         # 初始化优化器和损失函数
         optimizer = torch.optim.RMSprop(variable_qnetwork.parameters(), lr=self.training_setting.lr)
@@ -415,7 +403,7 @@ class ProgramManager(LoggerSubject):
         qnetwork.load_state_dict(checkpoint.get('state_dict', None))
 
         agent = FlappyAgent(0, device)
-        current_state = ProgramManager.empty_state
+        agent.reset_state()
 
         # 初始化游戏
         gamestate_setting = flappybird.settings.Setting()
@@ -432,8 +420,7 @@ class ProgramManager(LoggerSubject):
                 break
             # 更新agent当前观测的状态
             observation_frame = self.frame_preprocess(observation_frame)
-            current_state = np.append(current_state[1:, :, :],
-                                      observation_frame.reshape((1,) + observation_frame.shape), axis=0)
+            agent.update_current_state(observation_frame)
 
             agent.increase_time_step()
 
