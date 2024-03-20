@@ -16,8 +16,6 @@ class Setting:
 
     # 是否播放音效
     SOUND_PLAY = True
-    # 是否在控制台打印游戏日志
-    PRINT_CONSOLE_LOG = True
     # 是否显示强化学习用到的游戏界面，而非正常游戏界面
     SHOW_RL_OBSERVATION_SCREEN = False
     # 是否解除对游戏窗口刷新速度的控制(用于加快训练)
@@ -29,21 +27,23 @@ class Setting:
     def __init__(self):
         pass
 
-    def set_mode(self, mode='play'):
+    def set_render_mode(self, mode='hidden'):
         '''
-        切换演示环境与训练环境下不同的游戏设置
-        非法的模式会按照演示模式的设置处理
-        :param mode: 游戏模式，play（演示模式）/train（训练模式）
+        切换游戏渲染设置
+        :param mode: 游戏渲染方式: hidden(隐藏游戏窗口)/raw(只显示RL模型需要的游戏元素)/human(全部渲染游戏元素)
         '''
-        if mode == 'train':
+        if mode == 'hidden':
             self.SOUND_PLAY = False
-            self.PRINT_CONSOLE_LOG = False
             self.SHOW_RL_OBSERVATION_SCREEN = True
             self.UNLIMIT_SCREEN_UPDATE = True
             self.HIDE_WINDOW = True
-        else:
+        elif mode == 'raw':
+            self.SOUND_PLAY = False
+            self.SHOW_RL_OBSERVATION_SCREEN = True
+            self.UNLIMIT_SCREEN_UPDATE = True
+            self.HIDE_WINDOW = False
+        elif mode == 'human':
             self.SOUND_PLAY = True
-            self.PRINT_CONSOLE_LOG = True
             self.SHOW_RL_OBSERVATION_SCREEN = False
             self.UNLIMIT_SCREEN_UPDATE = False
             self.HIDE_WINDOW = False
