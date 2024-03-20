@@ -121,7 +121,7 @@ class ProgramManager(LoggerSubject):
 
         # 初始化游戏
         gamestate_setting = flappybird.settings.Setting()
-        gamestate_setting.set_mode(mode='train')
+        gamestate_setting.set_render_mode('hidden')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
 
@@ -331,7 +331,7 @@ class ProgramManager(LoggerSubject):
         '''
         time_step_list = []
         gamestate_setting = flappybird.settings.Setting()
-        gamestate_setting.set_mode(mode='train')
+        gamestate_setting.set_render_mode('hidden')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
 
@@ -362,7 +362,7 @@ class ProgramManager(LoggerSubject):
         # try:
         if player == 'human':
             gamestate_setting = flappybird.settings.Setting()
-            gamestate_setting.set_mode('play')
+            gamestate_setting.set_render_mode('human')
             game = FlappyBirdGameManager(gamestate_setting)
             game.set_player_human()
             game.start_game_by_human()
@@ -407,7 +407,7 @@ class ProgramManager(LoggerSubject):
 
         # 初始化游戏
         gamestate_setting = flappybird.settings.Setting()
-        gamestate_setting.set_mode('play')
+        gamestate_setting.set_render_mode('human')
         flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
         flappyBird_game_manager.set_player_computer()
 
