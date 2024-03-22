@@ -13,7 +13,7 @@ class EndWindow():
     def __init__(self, setting):
         super().__init__()
         self.setting = setting
-        self.floor = Floor(setting=self.setting)
+        self.floor = Floor(render_setting=self.setting)
         self.background = NormalBG()
         self.sprite_gameover = GameSprite()
         self.sprite_gameover.image = pygame.image.load('flappybird/assets/sprites/text_game_over.png')

@@ -15,6 +15,7 @@ dependencies:
       - gymnasium==0.29.1
       - numpy==1.26.0
       - pygame==2.5.2
+      - pyyaml==6.0.1
       - stable-baselines3==2.2.1
       - tensorboard==2.16.2
       - torch==2.1.0+cu121

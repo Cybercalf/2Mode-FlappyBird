@@ -3,7 +3,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium.spaces import Box, Discrete
 
-from flappybird.settings import Setting
+from flappybird.settings import RenderSetting
 from flappybird.game_manager import GameManager
 
 
@@ -38,14 +38,14 @@ class FlappyBirdEnv(gym.Env):
         self.render_mode = render_mode
 
         # 初始化游戏
-        game_setting = Setting()
+        game_render_setting = RenderSetting()
         if self.render_mode == 'human':
-            game_setting.set_render_mode('human')
+            game_render_setting.set_mode('human')
         elif self.render_mode == 'raw':
-            game_setting.set_render_mode('raw')
+            game_render_setting.set_mode('raw')
         else:
-            game_setting.set_render_mode('hidden')
-        self.game = GameManager(game_setting)
+            game_render_setting.set_mode('hidden')
+        self.game = GameManager(game_render_setting)
         self.game.set_player_computer()
 
         # 初始化当前状态

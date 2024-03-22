@@ -1,7 +1,8 @@
 import pygame
 import sys
+import os
 
-from .settings import Setting
+from .settings import RenderSetting, SpriteSetting
 from .sprite.bird import Bird
 from .sprite.floor import Floor
 from .sprite.pipe import PipeManager
@@ -19,7 +20,7 @@ class GameManager():
     启动游戏也是从这里开始
     '''
 
-    def __init__(self, setting: Setting):
+    def __init__(self, render_setting: RenderSetting):
 
         # super().__init__()
 
@@ -29,13 +30,19 @@ class GameManager():
         # 指定游戏玩家
         self.player = 'human'
 
-        # 加载设置
-        self.setting = setting
+        # 加载渲染设置
+        self.render_setting = render_setting
+
+        # 加载游戏元素参数设置
+        # 目前加载的位置原则上不允许做修改
+        self.sprite_setting = SpriteSetting()
+        abs_path = os.path.dirname(os.path.abspath(__file__))
+        self.sprite_setting.load(os.path.join(abs_path, './settings/sprites.yaml'))
 
         # 定义游戏屏幕信息
         self.screen = pygame.display.set_mode(
-            (self.setting.SCREENWIDTH, self.setting.SCREENHEIGHT),
-            flags=pygame.HIDDEN if self.setting.HIDE_WINDOW is True else pygame.SHOWN
+            (self.render_setting.SCREENWIDTH, self.render_setting.SCREENHEIGHT),
+            flags=pygame.HIDDEN if self.render_setting.HIDE_WINDOW is True else pygame.SHOWN
         )
         pygame.display.set_caption('Flappy Bird Demo')
 
@@ -43,11 +50,11 @@ class GameManager():
         self.gameclock = pygame.time.Clock()
 
         # 加载游戏音效文件
-        if self.setting.SOUND_PLAY:
+        if self.render_setting.SOUND_PLAY:
             self.sounds = SoundManager()
 
         # 游戏窗口
-        self.end_window = EndWindow(self.setting)
+        self.end_window = EndWindow(self.render_setting)
 
         # 游戏是否中止
         self.terminated = False
@@ -59,15 +66,18 @@ class GameManager():
         """
         self.normal_bg = NormalBG()
         self.black_bg = BlackBG()
-        self.floor = Floor(setting=setting)
+        self.floor = Floor(render_setting=self.render_setting)
         self.bird = Bird(
-            x=self.setting.SCREENWIDTH * 0.2,
-            y=self.setting.SCREENHEIGHT * 0.4,
-            setting=setting)
-        self.pipe_manager = PipeManager(setting=setting)
-        self.score_manager = ScoreManager(setting=setting)
+            x=self.render_setting.SCREENWIDTH * 0.2,
+            y=self.render_setting.SCREENHEIGHT * 0.4,
+            render_setting=self.render_setting,
+            sprite_setting=self.sprite_setting['flappybird']['bird'])
+        self.pipe_manager = PipeManager(
+            render_setting=self.render_setting,
+            sprite_setting=self.sprite_setting['flappybird']['pipe'])
+        self.score_manager = ScoreManager(setting=self.render_setting)
 
-        if self.setting.SOUND_PLAY:
+        if self.render_setting.SOUND_PLAY:
             self.sounds.play('background', volume=0.1, loop=True)
 
     def game_reset(self):
@@ -76,10 +86,13 @@ class GameManager():
         '''
         self.score_manager.reset_score()
         self.bird = Bird(
-            x=self.setting.SCREENWIDTH * 0.2,
-            y=self.setting.SCREENHEIGHT * 0.4,
-            setting=self.setting)
-        self.pipe_manager = PipeManager(setting=self.setting)
+            x=self.render_setting.SCREENWIDTH * 0.2,
+            y=self.render_setting.SCREENHEIGHT * 0.4,
+            render_setting=self.render_setting,
+            sprite_setting=self.sprite_setting['flappybird']['bird'])
+        self.pipe_manager = PipeManager(
+            render_setting=self.render_setting,
+            sprite_setting=self.sprite_setting['flappybird']['pipe'])
         self.terminated = False
 
     def set_player_human(self):
@@ -100,7 +113,7 @@ class GameManager():
         :param setting: 要加载的设置
         :return 加载的设置，与传入的setting相同
         '''
-        self.setting = setting
+        self.render_setting = setting
         return setting
 
     def get_current_score(self):
@@ -124,7 +137,7 @@ class GameManager():
             while True:
                 _, _, _ = self.frame_step()
                 if self.is_terminated():
-                    if self.setting.SOUND_PLAY:
+                    if self.render_setting.SOUND_PLAY:
                         self.sounds.play('hit')
                     break
             self.end_window.show(self.screen)
@@ -177,7 +190,7 @@ class GameManager():
             sys.exit(1)
 
         # 若小鸟此刻拍动翅膀，且设置规定游戏播放声音，则播放拍翅膀的音效
-        if self.bird.flap and self.setting.SOUND_PLAY:
+        if self.bird.flap and self.render_setting.SOUND_PLAY:
             self.sounds.play('flap')
 
         """
@@ -200,7 +213,7 @@ class GameManager():
         ).x_vel < self.pipe_manager.get_first_pipe_up().rect.centerx < self.bird.rect.left:
             self.score_manager.update_score()
             reward = 1
-            if self.setting.SOUND_PLAY:
+            if self.render_setting.SOUND_PLAY:
                 self.sounds.play('score')
 
         # 检查更新位置之后，是否达成了结束游戏的条件（小鸟飞出屏幕、落到地板或碰到水管）。如果是，游戏中止，reward变成-5，重置游戏
@@ -224,7 +237,7 @@ class GameManager():
         # 获取这一帧的游戏画面（游戏画面是卷积神经网络的输入成分）
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
 
-        if not self.setting.SHOW_RL_OBSERVATION_SCREEN:
+        if not self.render_setting.SHOW_RL_OBSERVATION_SCREEN:
             """
             在演示模式下重置屏幕，在画布（屏幕）上绘制各个元素，供人观看
             绘制顺序：背景、所有水管、地板、分数、小鸟
@@ -246,8 +259,8 @@ class GameManager():
         不调用的效果：游戏中所有物体的移动速度会因电脑性能而发生不确定的波动（通常比调用tick()要快）
         也许可以用来加快程序在高性能电脑上的训练速度
         """
-        if not self.setting.UNLIMIT_SCREEN_UPDATE:
-            self.gameclock.tick(self.setting.FPS)
+        if not self.render_setting.UNLIMIT_SCREEN_UPDATE:
+            self.gameclock.tick(self.render_setting.FPS)
 
         # 把这一帧的游戏画面、reward、terminal作为参数返回
         return image_data, reward, self.terminated
