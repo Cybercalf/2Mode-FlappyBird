@@ -120,9 +120,9 @@ class ProgramManager(LoggerSubject):
         ceriterion = torch.nn.MSELoss()
 
         # 初始化游戏
-        gamestate_setting = flappybird.settings.Setting()
-        gamestate_setting.set_render_mode('hidden')
-        flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
+        game_render_setting = flappybird.settings.RenderSetting()
+        game_render_setting.set_mode('hidden')
+        flappyBird_game_manager = FlappyBirdGameManager(game_render_setting)
         flappyBird_game_manager.set_player_computer()
 
         """
@@ -330,9 +330,9 @@ class ProgramManager(LoggerSubject):
         :returns avg_time_step: 模型在n次游戏中坚持的平均时间
         '''
         time_step_list = []
-        gamestate_setting = flappybird.settings.Setting()
-        gamestate_setting.set_render_mode('hidden')
-        flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
+        game_render_setting = flappybird.settings.RenderSetting()
+        game_render_setting.set_mode('hidden')
+        flappyBird_game_manager = FlappyBirdGameManager(game_render_setting)
         flappyBird_game_manager.set_player_computer()
 
         for test_case in range(test_episode_num):
@@ -361,9 +361,9 @@ class ProgramManager(LoggerSubject):
         '''
         # try:
         if player == 'human':
-            gamestate_setting = flappybird.settings.Setting()
-            gamestate_setting.set_render_mode('human')
-            game = FlappyBirdGameManager(gamestate_setting)
+            game_render_setting = flappybird.settings.RenderSetting()
+            game_render_setting.set_mode('human')
+            game = FlappyBirdGameManager(game_render_setting)
             game.set_player_human()
             game.start_game_by_human()
         elif player == 'computer':
@@ -406,9 +406,9 @@ class ProgramManager(LoggerSubject):
         agent.reset_state()
 
         # 初始化游戏
-        gamestate_setting = flappybird.settings.Setting()
-        gamestate_setting.set_render_mode('human')
-        flappyBird_game_manager = FlappyBirdGameManager(gamestate_setting)
+        game_render_setting = flappybird.settings.RenderSetting()
+        game_render_setting.set_mode('human')
+        flappyBird_game_manager = FlappyBirdGameManager(game_render_setting)
         flappyBird_game_manager.set_player_computer()
 
         while True:

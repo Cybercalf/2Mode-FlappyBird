@@ -15,6 +15,7 @@ dependencies:
       - gymnasium==0.29.1
       - numpy==1.26.0
       - pygame==2.5.2
+      - pyyaml==6.0.1
       - stable-baselines3==2.2.1
       - tensorboard==2.16.2
       - torch==2.1.0+cu121
@@ -63,15 +64,14 @@ python launch.py -h
 # To play game by yourself, simply go into the root of the project and type:
 python launch.py
 # To play game with a pretrained model, type:
-python launch.py --model < name of the model you want to play the game with >
+python launch.py --model <name of the model you want to play the game with>
 # To train a model from scratch with GPU support, type:
 python launch.py --train --cuda
 ```
 
-You can write the training presets in a json file before the training begins. A conforming json looks like:
+You can write the training presets in a json file before the training begins. Conforming json contents looks like:
 
 ```json
-// preset-example.json
 {
     "lr": 0.0001,
     "gamma": 0.99,
@@ -99,7 +99,7 @@ You can write the training presets in a json file before the training begins. A 
 After that, you can start the training using your own preset:
 
 ```shell
-python launch.py --json preset-example.json
+python launch.py --json <name of your preset file>.json
 ```
 
 Please note that if you launch the project via `launch.py`, the training process will use CPU by default. To transfrom your model to GPU, add parameter `--cuda` to your command explicitly.

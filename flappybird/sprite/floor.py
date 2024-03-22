@@ -7,10 +7,10 @@ class Floor(GameSprite):
     地板
     '''
 
-    def __init__(self, setting):
+    def __init__(self, render_setting):
         super().__init__()
 
-        self.setting = setting
+        self.render_setting = render_setting
 
         # 地板图片
         self.image = pygame.image.load('flappybird/assets/sprites/land.png')
@@ -19,10 +19,10 @@ class Floor(GameSprite):
         # 地板在水平方向上的位置
         self.rect.x = 0
         # 计算地板图片的y值：窗口大小 - 地板图片自身的高度
-        self.rect.y = self.setting.SCREENHEIGHT - self.get_height()
+        self.rect.y = self.render_setting.SCREENHEIGHT - self.get_height()
         # 地板的水平速度，向右为正方向
         # 注意速度时间单位为1帧的时间
-        self.x_vel = -3 * 60 / self.setting.FPS
+        self.x_vel = -3 * 60 / self.render_setting.FPS
         # self.x_vel = 0
 
     def update(self):
@@ -32,7 +32,7 @@ class Floor(GameSprite):
         super().update()
         # 计算地板图片与背景图片的宽度之差
         # 地板x坐标左移，若左移到极限则复位
-        floor_gap = self.get_width() - self.setting.SCREENWIDTH
+        floor_gap = self.get_width() - self.render_setting.SCREENWIDTH
         self.rect.x += self.x_vel
         if self.rect.x <= -floor_gap:
             self.rect.x = 0
@@ -53,4 +53,4 @@ class Floor(GameSprite):
         '''
         获取一个x为0（没有移动过）的地板类
         '''
-        return Floor(setting=self.setting)
+        return Floor(render_setting=self.render_setting)
