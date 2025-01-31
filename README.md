@@ -23,7 +23,7 @@ dependencies:
       - torchvision==0.16.0+cu121
 ```
 
-[This guide](https://blog.csdn.net/weixin_42634080/article/details/125360470) provides the complete precess of installing `PyTorch` and `CUDA`. To install other necessary dependencies, you can simply type `pip install stable-baselines3[extra]`. More information in [official installation guide](https://stable-baselines3.readthedocs.io/en/master/guide/install.html).
+[This guide](https://blog.csdn.net/weixin_42634080/article/details/125360470) provides the complete precess of installing `PyTorch` and `CUDA`. To install `pygame`, `numpy`, `gymnasium`, `tensorboard` and `stable-baselines3`, you can try `pip install stable-baselines3[extra]`. More information in [official installation guide](https://stable-baselines3.readthedocs.io/en/master/guide/install.html).
 
 ---
 
@@ -109,3 +109,5 @@ Please note that if you launch the project via `launch.py`, the training process
 ### Disclaimer
 
 The structure of classic Q-Network in this project currently references [xmfbit/DQN-FlappyBird](https://github.com/xmfbit/DQN-FlappyBird), which is based on other contributors' projects.
+
+I do not own the copyrights to images and audio featured in the game environment, their rights belong to their respective owners.
