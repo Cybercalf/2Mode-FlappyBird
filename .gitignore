@@ -165,7 +165,7 @@ backup/
 checkpoint/
 runtime_output/
 flappybird/assets/raw/
-study_notes/
+# study_notes/
 temp/
 yaml/
 
